@@ -1,7 +1,9 @@
 # APIで受け取るデータと、返すデータの型を定義
 
+# pydanticはデータのバリデーションと型定義を自動でしてくれるライブラリ
 from pydantic import BaseModel, Field
 
+# BaseModelを継承すると、型チェック、インスタンス生成が楽、JSON変換が楽
 class PropertyCreate(BaseModel):
     # 物件名(1文字以上)
     name: str = Field(min_length=1, max_length=255)
@@ -32,3 +34,17 @@ class PropertyResponse(BaseModel):
     class Config:
         # SQLAlchemyモデルをそのまま返せるようにする
         from_attributes = True
+
+
+class RecommendResponse(BaseModel):
+    # どの物件に対するレコメンドか(idで判断)
+    property_id: int
+
+    # 重み付け後の総合スコア
+    total_score: float
+
+    # レコメンドコメント
+    recommend: str
+
+    # 理由一覧
+    reasons: list[str]
