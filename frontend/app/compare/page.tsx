@@ -44,6 +44,52 @@ export default function CompareProperties() {
     {},
   );
 
+  // 検索・絞り込み用の定義
+  // 物件名・住所をまとめて検索するための文字列
+  const [keyword, setKeyword] = useState<string>("");
+
+  // 家賃の上限
+  const [maxRentFilter, setMaxRentFilter] = useState<string>("");
+  // 面積の下限
+  const [minAreaFilter, setMinAreaFilter] = useState<string>("");
+  // 駅徒歩分数の上限
+  const [maxStationFilter, setMaxStationFilter] = useState<string>("");
+
+  // お気に入り機能の定義
+  // お気に入りにした物件IDの配列
+  const [favoriteIds, setFavoriteIds] = useState<number[]>(() => {
+    // SSR時はwindowがないから空配列を返す
+    if (typeof window === "undefined") {
+      return [];
+    }
+
+    //   ↓ tryの中でエラーが起きたらcatchの中で処理
+    try {
+      // roomcompass-favoritesというキーで保存されたデータを取得してる
+      //? これを後でJSON形式に戻す必要がある
+      const localFavorite = window.localStorage.getItem(
+        "roomcompass-favorites",
+      );
+
+      if (!localFavorite) {
+        return [];
+      }
+
+      //! 受け取った値をJSON形式に戻す
+      //? JSON.parse：JSON形式に変換
+      const jsonLocalFavorite = JSON.parse(localFavorite);
+
+      // 配列か確認して反映
+      //? Array.isArray：渡した値が配列か確認
+      return Array.isArray(jsonLocalFavorite) ? jsonLocalFavorite : [];
+    } catch {
+      // 壊れたデータが入ってても画面を壊さない
+      return [];
+    }
+  });
+  // お気に入り物件のみ表示用
+  const [favoriteOnly, setFavoriteOnly] = useState<boolean>(false);
+
   //* 一覧取得関数
   async function loadProperties() {
     setLoading(true);
@@ -63,7 +109,7 @@ export default function CompareProperties() {
     }
   }
 
-  // 初回表示時に1回だけ取得(loadPropertiesとほぼ同じ)
+  //* 初回表示時に1回だけ取得(loadPropertiesとほぼ同じ)
   useEffect(() => {
     let cancelled = false;
 
@@ -95,12 +141,23 @@ export default function CompareProperties() {
     };
   }, []);
 
+  //* お気に入りが変わるたびに、localStorageに保存する
+  useEffect(() => {
+    //? window.localStorage.setItem：ローカルストレージにデータを保存
+    window.localStorage.setItem(
+      // 第一引数にキー、第２引数に値
+      "roomcompass-favorites",
+      JSON.stringify(favoriteIds),
+    );
+    //  ↓ favoriteIdsが変わるたびに実行という意味
+  }, [favoriteIds]);
+
   //* チェック切り替え処理
   // number型のidを引数として受け取る
   function checkProperty(id: number) {
     // prevSelectedIdsは今既に選ばれてるIDたち
     setSelectedIds((prevSelectedIds) => {
-      // includes()：配列のなかに既に存在しているか調べる
+      //? includes()：配列のなかに既に存在しているか調べる
       // 今回は、既に選ばれてるIDたちの中にidが含まれてるか
       const alreadySelected = prevSelectedIds.includes(id);
 
@@ -114,7 +171,63 @@ export default function CompareProperties() {
     });
   }
 
-  // 選択済み物件のみ抜き出す
+  //* お気に入り追加・削除機能
+  function toggleFavorite(propertyId: number) {
+    //               ↓ 更新前の現在の状態
+    setFavoriteIds((prevFavoriteIds) => {
+      // 既にお気に入り済みなら削除
+      //! → 更新前のprevFavoriteIdsにいま持ってきたpropertyIdが含まれてる時の処理
+      if (prevFavoriteIds.includes(propertyId)) {
+        return prevFavoriteIds.filter((id) => id !== propertyId);
+      }
+
+      // 未登録なら追加
+      //! 既存のprevFavoriteIdsをコピーして、その末尾にpropertyIdを追加
+      return [...prevFavoriteIds, propertyId];
+    });
+  }
+
+  //* 検索・絞り込み後の物件一覧
+  const filteredProperties = properties.filter((property) => {
+    // キーボードを小文字にして比較しやすくする
+    const normalizedKeyword = keyword.trim().toLowerCase();
+
+    // 物件名と住所をまとめて検索対象にする
+    const matchesKeyword =
+      // 裏から順に判定する
+      // Trueになった段階で処理を終わる
+      normalizedKeyword === "" ||
+      property.name.toLowerCase().includes(normalizedKeyword) ||
+      property.address.toLowerCase().includes(normalizedKeyword);
+
+    // 家賃上限フィルタ
+    const matchesMaxRent =
+      //                                    ↓ アロー関数ではなく以下
+      maxRentFilter === "" || property.rent <= Number(maxRentFilter);
+
+    // 面積下限フィルタ
+    const matchesMinArea =
+      minAreaFilter === "" || property.area >= Number(minAreaFilter);
+
+    // 駅徒歩上限フィルタ
+    const matchesMaxStation =
+      maxStationFilter === "" ||
+      property.station_minutes <= Number(maxStationFilter);
+
+    // お気に入りフィルタ
+    const matchesFavorite = !favoriteOnly || favoriteIds.includes(property.id);
+
+    // 全条件を満たすものだけ残す
+    return (
+      matchesKeyword &&
+      matchesMaxRent &&
+      matchesMinArea &&
+      matchesMaxStation &&
+      matchesFavorite
+    );
+  });
+
+  //* 選択済み物件のみ抜き出す
   // filter：条件に合う要素だけを残して新しい配列を作るメソッド
   // 配列.filter((要素) => 条件)
   const selectedProperties = properties.filter((property) =>
@@ -378,6 +491,94 @@ export default function CompareProperties() {
       <section className="mt-6">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">物件一覧</h2>
 
+        {/* 検索・絞り込みフォーム */}
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-3 text-sm font-semibold text-slate-900">
+            検索・絞り込み
+          </p>
+
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            {/* キーワード検索 */}
+            <label className="block text-sm text-slate-700">
+              キーワード
+              <input
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="物件名・住所で検索"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+              />
+            </label>
+
+            {/* 家賃上限 */}
+            <label className="block text-sm text-slate-700">
+              家賃上限
+              <input
+                type="number"
+                value={maxRentFilter}
+                onChange={(e) => setMaxRentFilter(e.target.value)}
+                placeholder="例: 80000"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+              />
+            </label>
+
+            {/* 面積下限 */}
+            <label className="block text-sm text-slate-700">
+              面積下限
+              <input
+                type="number"
+                value={minAreaFilter}
+                onChange={(e) => setMinAreaFilter(e.target.value)}
+                placeholder="例: 25"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+              />
+            </label>
+
+            {/* 駅徒歩上限 */}
+            <label className="block text-sm text-slate-700">
+              駅徒歩上限
+              <input
+                type="number"
+                value={maxStationFilter}
+                onChange={(e) => setMaxStationFilter(e.target.value)}
+                placeholder="例: 10"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+              />
+            </label>
+          </div>
+
+          {/* お気に入り物件のみ表示用 */}
+          <div className="mt-3">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                //? checked：チェックボックス専用の属性
+                checked={favoriteOnly}
+                onChange={(e) => setFavoriteOnly(e.target.checked)}
+                className="h-4 w-4"
+              />
+              お気に入りのみ表示
+            </label>
+          </div>
+
+          {/* 条件リセットボタン */}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setKeyword("");
+                setMaxRentFilter("");
+                setMinAreaFilter("");
+                setMaxStationFilter("");
+                setFavoriteOnly(false);
+              }}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              条件をリセット
+            </button>
+          </div>
+        </div>
+
         {/* 読み込み中 */}
         {loading && (
           <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
@@ -399,9 +600,19 @@ export default function CompareProperties() {
           </p>
         )}
 
-        {!loading && !errMessage && properties.length > 0 && (
+        {/* 検索条件に一致する物件がないとき */}
+        {!loading &&
+          !errMessage &&
+          properties.length > 0 &&
+          filteredProperties.length === 0 && (
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              条件に一致する物件が見つかりません
+            </p>
+          )}
+
+        {!loading && !errMessage && filteredProperties.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {properties.map((property) => {
+            {filteredProperties.map((property) => {
               const isSelected = selectedIds.includes(property.id);
 
               return (
@@ -436,6 +647,28 @@ export default function CompareProperties() {
                     <p>家賃: {property.rent.toLocaleString()}円</p>
                     <p>面積: {property.area}㎡</p>
                     <p>駅徒歩: {property.station_minutes}分</p>
+                  </div>
+
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        //? labelで囲まれてるのでチェックボックスまで作動してしまう可能性がある
+                        //! → preventDefault()でクリック連動を止める
+                        e.preventDefault();
+                        toggleFavorite(property.id);
+                      }}
+                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                        favoriteIds.includes(property.id)
+                          ? "border-amber-300 bg-amber-50 text-amber-700"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {favoriteIds.includes(property.id)
+                        ? "お気に入り削除"
+                        : "お気に入り追加"}
+                      {/* ?がTrueのとき、:がFlaseのとき */}
+                    </button>
                   </div>
                 </label>
               );
