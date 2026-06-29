@@ -36,6 +36,23 @@ export default function MainPage() {
             登録済みの物件を比較します
           </p>
         </Link>
+        <Link
+          href="/register"
+          className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+        >
+          <p className="font-semibold text-slate-900">新規登録</p>
+          <p className="mt-1 text-sm text-slate-600">ユーザーを作成します</p>
+        </Link>
+
+        <Link
+          href="/login"
+          className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+        >
+          <p className="font-semibold text-slate-900">ログイン</p>
+          <p className="mt-1 text-sm text-slate-600">
+            登録済みユーザーでログインします
+          </p>
+        </Link>
       </div>
     </main>
   );

@@ -1,9 +1,45 @@
 // API通信の関数をまとめるエリア
 
-import { PropertyItem, PropertyRequest, Recommend } from "./propertyTypes";
+import { LoginRequest, LoginResponse, PropertyItem, PropertyRequest, Recommend, RegisterRequest, RegisterResponse } from "./propertyTypes";
 
 // ??の左側がnullまたはunderfinedなら右側を使う
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+//* ユーザー登録API
+export async function registerUser(payload: RegisterRequest): Promise<RegisterResponse> {
+  const res = await fetch(`${API_BASE_URL}/users/register`, {
+    method: "POST",
+    headers: {
+      // JSON形式で送ると伝える
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("ユーザー登録に失敗しました");
+  }
+
+  return res.json();
+}
+
+//* ログインAPI
+export async function loginUser(payload: LoginRequest): Promise<LoginResponse> {
+  const res = await fetch(`${API_BASE_URL}/users/login`, {
+    method: "POST",
+    headers: {
+      // JSON形式で送ると伝える
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("ログインに失敗しました");
+  }
+
+  return res.json();
+}
 
 // asyncのときは必ずPromiseで返す
 // async関数は処理が終わるまで待てる関数

@@ -1,9 +1,10 @@
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
+import bcrypt
 
 from app.db import Base, SessionLocal, engine
-from app.models import Property
-from app.schemas import PropertyCreate, PropertyResponse, RecommendResponse
+from app.models import Property, User
+from app.schemas import PropertyCreate, PropertyResponse, RecommendResponse, UserCreate, UserLogin, UserResponse, LoginResponse
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -43,12 +44,78 @@ def get_db():
         # 終わったらクローズ
         db.close()
 
+def hash_password(password: str) -> str:
+    # パスワードをハッシュ化してDB保存用の文字列に変換
+    hashed = bcrypt.hashpw(password.encode("UTF-8"), bcrypt.gensalt())
+    return hashed.decode("utf-8")
+
+#   ↓ verify：確認
+def verify_password(password: str, password_hash: str) -> bool:
+    # 入力されたパスワードが保存済みハッシュと一致するか確認
+    return bcrypt.checkpw(
+        password.encode("utf-8"),
+        password_hash.encode("utf-8"),
+    )
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "service": "backend"}
 
+#* ユーザー新規登録API
+@app.post("/users/register", response_model=UserResponse, summary="ユーザー登録")
+def register_user(
+    payload: UserCreate,
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    # 同じメアドが既にあるか
+    #? db.query(User)：Userテーブルでクエリ(照合)を開始
+    existing_user = db.query(User).filter(User.email == payload.email).first()
 
-# フロントから送られてきた物件情報をDBに保存するAPI(POST /propertiesのときに実行)
+    if existing_user is not None:
+        # これ投げると即座にエラー返して処理終了
+        raise HTTPException(status_code=400, detail="このメールアドレスは既に登録されています")
+    
+    # パスワードハッシュ化してuserに格納
+    user = User(
+        name = payload.name,
+        email = payload.email,
+        #? hash_password()：ハッシュ化する関数
+        password_hash = hash_password(payload.password),
+    )
+
+    db.add(user)
+    db.commit()
+    # DBから最新情報を再取得
+    db.refresh(user)
+
+    return user
+
+#* ログインAPI
+@app.post("/users/login", response_model=LoginResponse, summary="ログイン")
+def login_user(
+    payload: UserLogin,
+    db: Session = Depends(get_db),
+) -> LoginResponse:
+    # メアドでユーザー検索
+    user = db.query(User).filter(User.email == payload.email).first()
+
+    # ユーザーが存在しない時
+    if user is None:
+        raise HTTPException(status_code=401, detail="メールアドレスまたはパスワードが違います")
+
+    # パスワードが一致しない時
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="メールアドレスまたはパスワードが違います")
+    
+    return LoginResponse(
+        message="ログイン成功",
+        user_id=user.id,
+        name=user.name,
+        email=user.email,
+    )
+
+
+#* フロントから送られてきた物件情報をDBに保存するAPI(POST /propertiesのときに実行)
 @app.post("/properties", response_model=PropertyResponse, summary="物件を登録する")
 # responce_model：APIが返すデータの型を指定
 def create_property(

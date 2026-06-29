@@ -4,26 +4,68 @@
 
 import { fetchProperties, getRecommend } from "@/lib/propertyApi";
 
-import { PropertyItem, Recommend } from "@/lib/propertyTypes";
+import { PropertyItem, Recommend, SaveCompare } from "@/lib/propertyTypes";
 import { useEffect, useState } from "react";
 
 export default function CompareProperties() {
+  //
+  //
+  //! 定義エリアで使いたいので先に--------------------------
+  // 比較情報の保存のキー
+  const compareStorageKey = "roomcompass-compare-conditions";
+
+  //* 前回の比較条件などの読み込み(復元)
+  // 　　　　　　　　　　　　　　　　　↓ 戻り値がSavecompareかnull
+  function loadPrevCompare(): SaveCompare | null {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    try {
+      //? window.localStorage.getItem(キー)：キー内の文字列を取得
+      const raw = window.localStorage.getItem(compareStorageKey);
+
+      // 未存在チェック
+      if (!raw) {
+        return null;
+      }
+
+      // as SaveCompareで型定義
+      return JSON.parse(raw) as SaveCompare;
+    } catch {
+      return null;
+    }
+  }
+  //! ------------------------------------------
+
   // 物件一覧の定義
   const [properties, setProperties] = useState<PropertyItem[]>([]);
   // UI系の定義
   const [loading, setLoading] = useState<boolean>(false);
   const [errMessage, setErrMessage] = useState<string>("");
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // 保存済みのデータがあればそれを読み込む(最初の一回だけ)
+  const [selectedIds, setSelectedIds] = useState<number[]>(
+    () => loadPrevCompare()?.selectedIds ?? [],
+  );
 
   // 重みの定義
   // 何を重視するかをユーザーが操作できるようにする
-  const [rentWeight, setRentWeight] = useState<number>(40);
-  const [areaWeight, setAreaWeight] = useState<number>(30);
-  const [stationWeight, setStationWeight] = useState<number>(30);
+  const [rentWeight, setRentWeight] = useState<number>(
+    () => loadPrevCompare()?.rentWeight ?? 40,
+  );
+  const [areaWeight, setAreaWeight] = useState<number>(
+    () => loadPrevCompare()?.areaWeight ?? 30,
+  );
+  const [stationWeight, setStationWeight] = useState<number>(
+    () => loadPrevCompare()?.stationWeight ?? 30,
+  );
 
   // どれ重視かのプリセットの定義
   //                                    ↓ これは型はstringかnullのどっちかという意味
-  const [preset, setPreset] = useState<string | null>(null);
+  const [preset, setPreset] = useState<string | null>(
+    () => loadPrevCompare()?.preset ?? null,
+  );
 
   // リコメンドの定義
   // Record<Number, boolean>：キーが物件ID、値がリコメンドが開いてるかの型定義
@@ -46,14 +88,22 @@ export default function CompareProperties() {
 
   // 検索・絞り込み用の定義
   // 物件名・住所をまとめて検索するための文字列
-  const [keyword, setKeyword] = useState<string>("");
+  const [keyword, setKeyword] = useState<string>(
+    () => loadPrevCompare()?.keyword ?? "",
+  );
 
   // 家賃の上限
-  const [maxRentFilter, setMaxRentFilter] = useState<string>("");
+  const [maxRentFilter, setMaxRentFilter] = useState<string>(
+    () => loadPrevCompare()?.maxRentFilter ?? "",
+  );
   // 面積の下限
-  const [minAreaFilter, setMinAreaFilter] = useState<string>("");
+  const [minAreaFilter, setMinAreaFilter] = useState<string>(
+    () => loadPrevCompare()?.minAreaFilter ?? "",
+  );
   // 駅徒歩分数の上限
-  const [maxStationFilter, setMaxStationFilter] = useState<string>("");
+  const [maxStationFilter, setMaxStationFilter] = useState<string>(
+    () => loadPrevCompare()?.maxStationFilter ?? "",
+  );
 
   // お気に入り機能の定義
   // お気に入りにした物件IDの配列
@@ -88,7 +138,9 @@ export default function CompareProperties() {
     }
   });
   // お気に入り物件のみ表示用
-  const [favoriteOnly, setFavoriteOnly] = useState<boolean>(false);
+  const [favoriteOnly, setFavoriteOnly] = useState<boolean>(
+    () => loadPrevCompare()?.favoriteOnly ?? false,
+  );
 
   //* 一覧取得関数
   async function loadProperties() {
@@ -151,6 +203,40 @@ export default function CompareProperties() {
     );
     //  ↓ favoriteIdsが変わるたびに実行という意味
   }, [favoriteIds]);
+
+  //* 比較条件保存用
+  // useEffect(() => {
+  //  やりたい処理
+  // }, [依存配列]);
+  useEffect(() => {
+    // 1つのオブジェクトにまとめる(オブジェクト：関連するデータをひとまとめにしたもの)
+    const nowCompare: SaveCompare = {
+      selectedIds,
+      rentWeight,
+      areaWeight,
+      stationWeight,
+      preset,
+      keyword,
+      maxRentFilter,
+      minAreaFilter,
+      maxStationFilter,
+      favoriteOnly,
+    };
+
+    window.localStorage.setItem(compareStorageKey, JSON.stringify(nowCompare));
+  }, [
+    //! この下の依存配列の値が変化した時に実行
+    selectedIds,
+    rentWeight,
+    areaWeight,
+    stationWeight,
+    preset,
+    keyword,
+    maxRentFilter,
+    minAreaFilter,
+    maxStationFilter,
+    favoriteOnly,
+  ]);
 
   //* チェック切り替え処理
   // number型のidを引数として受け取る
