@@ -9,6 +9,8 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    env_file:
+      - RoomCompass.env
     environment:
       - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
     depends_on:

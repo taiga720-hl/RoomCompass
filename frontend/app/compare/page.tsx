@@ -2,41 +2,32 @@
 
 //* 物件比較ページ
 
-import { fetchProperties, getRecommend } from "@/lib/propertyApi";
+import {
+  addFavorite,
+  deleteFavorite,
+  fetchProperties,
+  getFavorites,
+  getRecommend,
+  getCompareHistories,
+  saveCompareHistory,
+  deleteCompareHistory,
+} from "@/lib/propertyApi";
 
-import { PropertyItem, Recommend, SaveCompare } from "@/lib/propertyTypes";
-import { useEffect, useState } from "react";
+import {
+  PropertyItem,
+  Recommend,
+  SaveCompare,
+  CompareHistoryResponse,
+} from "@/lib/propertyTypes";
+import { useEffect, useState, useMemo } from "react";
+
+import PropertyMap from "@/components/PropertyMap";
+
+import Link from "next/link";
 
 export default function CompareProperties() {
-  //
-  //
-  //! 定義エリアで使いたいので先に--------------------------
-  // 比較情報の保存のキー
+  // 比較情報の保存キー
   const compareStorageKey = "roomcompass-compare-conditions";
-
-  //* 前回の比較条件などの読み込み(復元)
-  // 　　　　　　　　　　　　　　　　　↓ 戻り値がSavecompareかnull
-  function loadPrevCompare(): SaveCompare | null {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    try {
-      //? window.localStorage.getItem(キー)：キー内の文字列を取得
-      const raw = window.localStorage.getItem(compareStorageKey);
-
-      // 未存在チェック
-      if (!raw) {
-        return null;
-      }
-
-      // as SaveCompareで型定義
-      return JSON.parse(raw) as SaveCompare;
-    } catch {
-      return null;
-    }
-  }
-  //! ------------------------------------------
 
   // 物件一覧の定義
   const [properties, setProperties] = useState<PropertyItem[]>([]);
@@ -45,27 +36,17 @@ export default function CompareProperties() {
   const [errMessage, setErrMessage] = useState<string>("");
 
   // 保存済みのデータがあればそれを読み込む(最初の一回だけ)
-  const [selectedIds, setSelectedIds] = useState<number[]>(
-    () => loadPrevCompare()?.selectedIds ?? [],
-  );
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   // 重みの定義
   // 何を重視するかをユーザーが操作できるようにする
-  const [rentWeight, setRentWeight] = useState<number>(
-    () => loadPrevCompare()?.rentWeight ?? 40,
-  );
-  const [areaWeight, setAreaWeight] = useState<number>(
-    () => loadPrevCompare()?.areaWeight ?? 30,
-  );
-  const [stationWeight, setStationWeight] = useState<number>(
-    () => loadPrevCompare()?.stationWeight ?? 30,
-  );
+  const [rentWeight, setRentWeight] = useState<number>(40);
+  const [areaWeight, setAreaWeight] = useState<number>(30);
+  const [stationWeight, setStationWeight] = useState<number>(30);
 
   // どれ重視かのプリセットの定義
   //                                    ↓ これは型はstringかnullのどっちかという意味
-  const [preset, setPreset] = useState<string | null>(
-    () => loadPrevCompare()?.preset ?? null,
-  );
+  const [preset, setPreset] = useState<string | null>(null);
 
   // リコメンドの定義
   // Record<Number, boolean>：キーが物件ID、値がリコメンドが開いてるかの型定義
@@ -88,59 +69,36 @@ export default function CompareProperties() {
 
   // 検索・絞り込み用の定義
   // 物件名・住所をまとめて検索するための文字列
-  const [keyword, setKeyword] = useState<string>(
-    () => loadPrevCompare()?.keyword ?? "",
-  );
+  const [keyword, setKeyword] = useState<string>("");
 
   // 家賃の上限
-  const [maxRentFilter, setMaxRentFilter] = useState<string>(
-    () => loadPrevCompare()?.maxRentFilter ?? "",
-  );
+  const [maxRentFilter, setMaxRentFilter] = useState<string>("");
   // 面積の下限
-  const [minAreaFilter, setMinAreaFilter] = useState<string>(
-    () => loadPrevCompare()?.minAreaFilter ?? "",
-  );
+  const [minAreaFilter, setMinAreaFilter] = useState<string>("");
   // 駅徒歩分数の上限
-  const [maxStationFilter, setMaxStationFilter] = useState<string>(
-    () => loadPrevCompare()?.maxStationFilter ?? "",
-  );
+  const [maxStationFilter, setMaxStationFilter] = useState<string>("");
 
   // お気に入り機能の定義
   // お気に入りにした物件IDの配列
-  const [favoriteIds, setFavoriteIds] = useState<number[]>(() => {
-    // SSR時はwindowがないから空配列を返す
-    if (typeof window === "undefined") {
-      return [];
-    }
+  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
 
-    //   ↓ tryの中でエラーが起きたらcatchの中で処理
-    try {
-      // roomcompass-favoritesというキーで保存されたデータを取得してる
-      //? これを後でJSON形式に戻す必要がある
-      const localFavorite = window.localStorage.getItem(
-        "roomcompass-favorites",
-      );
-
-      if (!localFavorite) {
-        return [];
-      }
-
-      //! 受け取った値をJSON形式に戻す
-      //? JSON.parse：JSON形式に変換
-      const jsonLocalFavorite = JSON.parse(localFavorite);
-
-      // 配列か確認して反映
-      //? Array.isArray：渡した値が配列か確認
-      return Array.isArray(jsonLocalFavorite) ? jsonLocalFavorite : [];
-    } catch {
-      // 壊れたデータが入ってても画面を壊さない
-      return [];
-    }
-  });
   // お気に入り物件のみ表示用
-  const [favoriteOnly, setFavoriteOnly] = useState<boolean>(
-    () => loadPrevCompare()?.favoriteOnly ?? false,
-  );
+  const [favoriteOnly, setFavoriteOnly] = useState<boolean>(false);
+
+  // ログイン中ユーザーID
+  const [userId, setUserId] = useState<number | null>(null);
+
+  // localStorage復元が終わる前に保存effectが走ると上書きするためガードする
+  const [isRestoreDone, setIsRestoreDone] = useState<boolean>(false);
+
+  // 比較一覧履歴
+  const [histories, setHistories] = useState<CompareHistoryResponse[]>([]);
+
+  // 履歴保存中フラグ ← 連打防止とボタン表示切り替え用
+  const [savingHistory, setSavingHistory] = useState<boolean>(false);
+
+  // 履歴に関するメッセージ
+  const [historyMessage, setHistoryMessage] = useState<string>("");
 
   //* 一覧取得関数
   async function loadProperties() {
@@ -193,22 +151,157 @@ export default function CompareProperties() {
     };
   }, []);
 
-  //* お気に入りが変わるたびに、localStorageに保存する
+  //* 初回マウント後にlocalStorageから比較条件とユーザーを復元
   useEffect(() => {
-    //? window.localStorage.setItem：ローカルストレージにデータを保存
-    window.localStorage.setItem(
-      // 第一引数にキー、第２引数に値
-      "roomcompass-favorites",
-      JSON.stringify(favoriteIds),
-    );
-    //  ↓ favoriteIdsが変わるたびに実行という意味
-  }, [favoriteIds]);
+    let cancelled = false;
+
+    async function restoreFromLocalStorage() {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      try {
+        const rawCompare = window.localStorage.getItem(compareStorageKey);
+        if (rawCompare) {
+          const prev = JSON.parse(rawCompare) as SaveCompare;
+
+          if (!cancelled) {
+            setSelectedIds(
+              Array.isArray(prev.selectedIds) ? prev.selectedIds : [],
+            );
+            setRentWeight(
+              typeof prev.rentWeight === "number" ? prev.rentWeight : 40,
+            );
+            setAreaWeight(
+              typeof prev.areaWeight === "number" ? prev.areaWeight : 30,
+            );
+            setStationWeight(
+              typeof prev.stationWeight === "number" ? prev.stationWeight : 30,
+            );
+            setPreset(
+              typeof prev.preset === "string" || prev.preset === null
+                ? prev.preset
+                : null,
+            );
+            setKeyword(typeof prev.keyword === "string" ? prev.keyword : "");
+            setMaxRentFilter(
+              typeof prev.maxRentFilter === "string" ? prev.maxRentFilter : "",
+            );
+            setMinAreaFilter(
+              typeof prev.minAreaFilter === "string" ? prev.minAreaFilter : "",
+            );
+            setMaxStationFilter(
+              typeof prev.maxStationFilter === "string"
+                ? prev.maxStationFilter
+                : "",
+            );
+            setFavoriteOnly(
+              typeof prev.favoriteOnly === "boolean"
+                ? prev.favoriteOnly
+                : false,
+            );
+          }
+        }
+      } catch {
+        // 復元失敗時はデフォルト値で継続
+      }
+
+      try {
+        const rawUser = window.localStorage.getItem("roomcompass-user");
+        if (!cancelled) {
+          if (!rawUser) {
+            setUserId(null);
+          } else {
+            const parsedUser = JSON.parse(rawUser);
+            setUserId(
+              typeof parsedUser?.userId === "number" ? parsedUser.userId : null,
+            );
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setUserId(null);
+        }
+      }
+
+      if (!cancelled) {
+        setIsRestoreDone(true);
+      }
+    }
+
+    restoreFromLocalStorage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [compareStorageKey]);
+
+  //* ログイン中ユーザーのお気に入りをAPIから取得
+  useEffect(() => {
+    if (userId === null) return;
+
+    const currentUserId = userId;
+
+    let cancelled = false;
+
+    async function loadFavorites() {
+      try {
+        // backendから該当ユーザーのお気に入り一覧を取得
+        const favorites = await getFavorites(currentUserId);
+
+        if (!cancelled) {
+          // property_id だけ抜き出して compare 側の favoriteIds に反映
+          setFavoriteIds(favorites.map((item) => item.property_id));
+        }
+      } catch {
+        if (!cancelled) {
+          setErrMessage("お気に入り一覧の取得に失敗しました");
+          setFavoriteIds([]);
+        }
+      }
+    }
+
+    loadFavorites();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  //* ログイン中ユーザーの比較履歴をAPIから取得
+  useEffect(() => {
+    if (userId === null) return;
+
+    const currentUserId = userId;
+    let cancelled = false;
+
+    async function loadHistories() {
+      try {
+        const data = await getCompareHistories(currentUserId);
+        if (!cancelled) {
+          setHistories(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setHistoryMessage("比較履歴の取得に失敗しました");
+        }
+      }
+    }
+
+    loadHistories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   //* 比較条件保存用
   // useEffect(() => {
   //  やりたい処理
   // }, [依存配列]);
   useEffect(() => {
+    if (!isRestoreDone) return;
+
     // 1つのオブジェクトにまとめる(オブジェクト：関連するデータをひとまとめにしたもの)
     const nowCompare: SaveCompare = {
       selectedIds,
@@ -236,6 +329,7 @@ export default function CompareProperties() {
     minAreaFilter,
     maxStationFilter,
     favoriteOnly,
+    isRestoreDone,
   ]);
 
   //* チェック切り替え処理
@@ -257,61 +351,152 @@ export default function CompareProperties() {
     });
   }
 
-  //* お気に入り追加・削除機能
-  function toggleFavorite(propertyId: number) {
-    //               ↓ 更新前の現在の状態
-    setFavoriteIds((prevFavoriteIds) => {
-      // 既にお気に入り済みなら削除
-      //! → 更新前のprevFavoriteIdsにいま持ってきたpropertyIdが含まれてる時の処理
-      if (prevFavoriteIds.includes(propertyId)) {
-        return prevFavoriteIds.filter((id) => id !== propertyId);
-      }
+  //* お気に入り追加・削除機能(API版)
+  async function toggleFavorite(propertyId: number) {
+    // ログインしていない場合は操作不可
+    if (userId === null) {
+      setErrMessage("お気に入り機能はログイン後に利用できます");
+      return;
+    }
 
-      // 未登録なら追加
-      //! 既存のprevFavoriteIdsをコピーして、その末尾にpropertyIdを追加
-      return [...prevFavoriteIds, propertyId];
-    });
+    const alreadyFavorite = favoriteIds.includes(propertyId);
+
+    try {
+      if (alreadyFavorite) {
+        // 既に登録済みなら削除
+        await deleteFavorite(userId, propertyId);
+
+        // 画面状態も更新
+        setFavoriteIds((prev) => prev.filter((id) => id !== propertyId));
+      } else {
+        // 未登録なら追加
+        await addFavorite({
+          user_id: userId,
+          property_id: propertyId,
+        });
+
+        // 画面状態も更新
+        setFavoriteIds((prev) => [...prev, propertyId]);
+      }
+    } catch {
+      setErrMessage("お気に入り更新に失敗しました");
+    }
+  }
+
+  //* 現在の比較条件を履歴として保存
+  async function saveCurrentCompare() {
+    // 未ログイン時の処理
+    if (userId === null) {
+      setHistoryMessage("比較履歴の保存はログイン後に利用できます");
+      return;
+    }
+
+    setSavingHistory(true);
+    setHistoryMessage("");
+
+    try {
+      const saved = await saveCompareHistory({
+        user_id: userId,
+        selected_ids: selectedIds,
+        rent_weight: rentWeight,
+        area_weight: areaWeight,
+        station_weight: stationWeight,
+        preset,
+        // 空文字は保存する意味が薄いのでnullに寄せる
+        keyword: keyword || null,
+        max_rent_filter: maxRentFilter || null,
+        min_area_filter: minAreaFilter || null,
+        max_station_filter: maxStationFilter || null,
+        favorite_only: favoriteOnly,
+      });
+
+      // 一覧を取り直さず、新しい履歴を先頭に追加してすぐ画面に反映
+      setHistories((prev) => [saved, ...prev]);
+      setHistoryMessage("比較条件を保存しました");
+    } catch {
+      setHistoryMessage("比較条件の保存に失敗しました");
+    } finally {
+      setSavingHistory(false);
+    }
+  }
+
+  //* 履歴を選んで比較条件を復元
+  function loadHistory(history: CompareHistoryResponse) {
+    setSelectedIds(history.selected_ids);
+    setRentWeight(history.rent_weight);
+    setAreaWeight(history.area_weight);
+    setStationWeight(history.station_weight);
+    setPreset(history.preset);
+    setKeyword(history.keyword ?? "");
+    setMaxRentFilter(history.max_rent_filter ?? "");
+    setMinAreaFilter(history.min_area_filter ?? "");
+    setMaxStationFilter(history.max_station_filter ?? "");
+    setFavoriteOnly(history.favorite_only);
+
+    setHistoryMessage("比較条件を読み込みました");
+  }
+
+  //* 履歴を削除
+  async function removeHistory(historyId: number) {
+    if (userId === null) return;
+
+    try {
+      await deleteCompareHistory(historyId, userId);
+      setHistories((prev) => prev.filter((item) => item.id !== historyId));
+    } catch {
+      setHistoryMessage("比較履歴の削除に失敗しました");
+    }
   }
 
   //* 検索・絞り込み後の物件一覧
-  const filteredProperties = properties.filter((property) => {
-    // キーボードを小文字にして比較しやすくする
-    const normalizedKeyword = keyword.trim().toLowerCase();
+  //? useMemo()を使うことで...↓
+  //? 検索条件が変わった時だけ物件一覧を再検索し、それ以外は前回の結果を再利用できる
+  const filteredProperties = useMemo(() => {
+    return properties.filter((property) => {
+      // キーボードを小文字にして比較しやすくする
+      const normalizedKeyword = keyword.trim().toLowerCase();
 
-    // 物件名と住所をまとめて検索対象にする
-    const matchesKeyword =
-      // 裏から順に判定する
-      // Trueになった段階で処理を終わる
-      normalizedKeyword === "" ||
-      property.name.toLowerCase().includes(normalizedKeyword) ||
-      property.address.toLowerCase().includes(normalizedKeyword);
+      // 物件名と住所をまとめて検索対象にする
+      const matchesKeyword =
+        normalizedKeyword === "" ||
+        property.name.toLowerCase().includes(normalizedKeyword) ||
+        property.address.toLowerCase().includes(normalizedKeyword);
 
-    // 家賃上限フィルタ
-    const matchesMaxRent =
-      //                                    ↓ アロー関数ではなく以下
-      maxRentFilter === "" || property.rent <= Number(maxRentFilter);
+      // 家賃上限フィルタ
+      const matchesMaxRent =
+        maxRentFilter === "" || property.rent <= Number(maxRentFilter);
 
-    // 面積下限フィルタ
-    const matchesMinArea =
-      minAreaFilter === "" || property.area >= Number(minAreaFilter);
+      // 面積下限フィルタ
+      const matchesMinArea =
+        minAreaFilter === "" || property.area >= Number(minAreaFilter);
 
-    // 駅徒歩上限フィルタ
-    const matchesMaxStation =
-      maxStationFilter === "" ||
-      property.station_minutes <= Number(maxStationFilter);
+      // 駅徒歩上限フィルタ
+      const matchesMaxStation =
+        maxStationFilter === "" ||
+        property.station_minutes <= Number(maxStationFilter);
 
-    // お気に入りフィルタ
-    const matchesFavorite = !favoriteOnly || favoriteIds.includes(property.id);
+      // お気に入りフィルタ
+      const matchesFavorite =
+        !favoriteOnly || favoriteIds.includes(property.id);
 
-    // 全条件を満たすものだけ残す
-    return (
-      matchesKeyword &&
-      matchesMaxRent &&
-      matchesMinArea &&
-      matchesMaxStation &&
-      matchesFavorite
-    );
-  });
+      // 全条件を満たすものだけ残す
+      return (
+        matchesKeyword &&
+        matchesMaxRent &&
+        matchesMinArea &&
+        matchesMaxStation &&
+        matchesFavorite
+      );
+    });
+  }, [
+    properties,
+    keyword,
+    maxRentFilter,
+    minAreaFilter,
+    maxStationFilter,
+    favoriteOnly,
+    favoriteIds,
+  ]);
 
   //* 選択済み物件のみ抜き出す
   // filter：条件に合う要素だけを残して新しい配列を作るメソッド
@@ -562,6 +747,16 @@ export default function CompareProperties() {
       <p className="mt-2 text-sm text-slate-600">
         比較したい物件を選択してください
       </p>
+
+      {/* 未ログイン時のバナー */}
+      {userId === null && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          お気に入り・比較履歴の保存はログイン後に利用できます。{" "}
+          <Link href="/login" className="font-medium underline">
+            ログインする
+          </Link>
+        </div>
+      )}
 
       {/* 再読み込みボタン */}
       <div className="mt-4">
@@ -882,6 +1077,89 @@ export default function CompareProperties() {
             </label>
           </div>
         </div>
+
+        {/* 比較履歴 */}
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-900">比較履歴</p>
+            <button
+              type="button"
+              onClick={saveCurrentCompare}
+              disabled={savingHistory}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {savingHistory ? "保存中..." : "現在の条件を保存"}
+            </button>
+          </div>
+
+          {historyMessage && (
+            <p className="mt-2 text-xs text-slate-500">{historyMessage}</p>
+          )}
+
+          {userId === null && (
+            <p className="mt-3 text-sm text-slate-500">
+              比較履歴の保存・閲覧はログイン後に利用できます
+            </p>
+          )}
+
+          {userId !== null && histories.length === 0 && (
+            <p className="mt-3 text-sm text-slate-500">
+              保存された履歴はまだありません
+            </p>
+          )}
+
+          {userId !== null && histories.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {histories.map((history) => (
+                <li
+                  key={history.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                >
+                  <div>
+                    <p className="font-medium text-slate-800">
+                      {history.preset ?? "カスタム調整"} ・ 物件
+                      {history.selected_ids.length}件
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {new Date(history.created_at).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => loadHistory(history)}
+                      className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      読み込む
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeHistory(history.id)}
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100"
+                    >
+                      削除
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* 地図から物件を選ぶ */}
+        {filteredProperties.length > 0 && (
+          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="mb-3 text-sm font-semibold text-slate-900">
+              地図から選ぶ(緑ピン: 選択中 / 赤ピン: 未選択、クリックで切り替え)
+            </p>
+            <PropertyMap
+              properties={filteredProperties}
+              selectedIds={selectedIds}
+              onToggleProperty={checkProperty}
+            />
+          </div>
+        )}
 
         {/* 総合スコアのグラフ */}
         {scoredProperties.length > 0 && ( // 選択中の物件が一件以上の時の処理

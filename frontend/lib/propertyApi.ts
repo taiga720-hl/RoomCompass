@@ -1,6 +1,6 @@
 // API通信の関数をまとめるエリア
 
-import { LoginRequest, LoginResponse, PropertyItem, PropertyRequest, Recommend, RegisterRequest, RegisterResponse } from "./propertyTypes";
+import { LoginRequest, LoginResponse, FavoriteRequest, FavoriteResponse, PropertyItem, PropertyRequest, Recommend, RegisterRequest, RegisterResponse, CompareHistoryRequest, CompareHistoryResponse, } from "./propertyTypes";
 
 // ??の左側がnullまたはunderfinedなら右側を使う
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -40,6 +40,113 @@ export async function loginUser(payload: LoginRequest): Promise<LoginResponse> {
 
   return res.json();
 }
+
+//* お気に入り追加API
+export async function addFavorite(payload: FavoriteRequest): Promise<FavoriteResponse> {
+  const res = await fetch(`${API_BASE_URL}/favorites`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("お気に入り追加に失敗しました");
+  }
+
+  return res.json();
+}
+
+//* お気に入り一覧取得API
+export async function getFavorites(userId: number): Promise<FavoriteResponse[]> {
+  const res = await fetch(`${API_BASE_URL}/users/${userId}/favorites`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("お気に入り一覧の取得に失敗しました")
+  }
+
+  return res.json();
+}
+
+//* お気に入り削除API
+export async function deleteFavorite(userId: number, propertyId: number): Promise<{ message: string }> {
+  const query = new URLSearchParams({
+    user_id: String(userId),
+    property_id: String(propertyId),
+  });
+
+  const res = await fetch(`${API_BASE_URL}/favorites?${query.toString()}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    throw new Error("お気に入り削除に失敗しました");
+  }
+
+  return res.json();
+}
+
+// 比較履歴保存API
+export async function saveCompareHistory(
+  payload: CompareHistoryRequest,
+): Promise<CompareHistoryResponse> {
+  const res = await fetch(`${API_BASE_URL}/compare-histories`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("比較履歴の保存に失敗しました");
+  }
+
+  return res.json();
+}
+
+//* 比較履歴一覧取得API
+export async function getCompareHistories(
+  userId: number,
+): Promise<CompareHistoryResponse[]> {
+  const res = await fetch(`${API_BASE_URL}/users/${userId}/compare-histories`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("比較履歴一覧の取得に失敗しました");
+  }
+
+  return res.json();
+}
+
+//* 比較履歴削除API
+export async function deleteCompareHistory(
+  historyId: number,
+  userId: number,
+): Promise<{ message: string }> {
+  // deleteFavoriteと同じく、所有者確認用のuser_idをクエリで渡す
+  const query = new URLSearchParams({ user_id: String(userId) });
+
+  const res = await fetch(
+    `${API_BASE_URL}/compare-histories/${historyId}?${query.toString()}`,
+    {
+      method: "DELETE",
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error("比較履歴の削除に失敗しました");
+  }
+
+  return res.json();
+}
+
 
 // asyncのときは必ずPromiseで返す
 // async関数は処理が終わるまで待てる関数

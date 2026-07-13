@@ -1,10 +1,17 @@
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 import bcrypt
+import requests
+from app.config import settings
 
 from app.db import Base, SessionLocal, engine
-from app.models import Property, User
-from app.schemas import PropertyCreate, PropertyResponse, RecommendResponse, UserCreate, UserLogin, UserResponse, LoginResponse
+from app.models import Property, User, Favorite, CompareHistory
+from app.schemas import (
+    PropertyCreate, PropertyResponse, RecommendResponse, 
+    UserCreate, UserLogin, UserResponse, LoginResponse, 
+    FavoriteCreate, FavoriteResponse, 
+    CompareHistoryCreate, CompareHistoryResponse
+)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,11 +23,13 @@ app = FastAPI(title="RoomCompass API")
 # それをここで制限→許可してる
 app.add_middleware(
     CORSMiddleware,
-    # アクセスを許可するフロントのURL
-    allow_origins=[
+    # アクセスを許可するフロントのURL(本番のURLは環境変数FRONTEND_ORIGINで追加する)
+    allow_origins=(
         # URL複数指定可能
-        "http://localhost:3000",
-    ],
+        ["http://localhost:3000", settings.FRONTEND_ORIGIN]
+        if settings.FRONTEND_ORIGIN
+        else ["http://localhost:3000"]
+    ),
     # Cookie・認証ヘッダー（Authorizationなど）の送受信を許可するかどうか決めるエリア
     # ログインなど実装するときはTrueにする
     allow_credentials=True,
@@ -114,6 +123,159 @@ def login_user(
         email=user.email,
     )
 
+#* お気に入り追加API
+@app.post("/favorites", response_model=FavoriteResponse, summary="お気に入り追加")
+def add_favorite(
+    payload: FavoriteCreate,
+    db: Session = Depends(get_db),
+) -> FavoriteResponse:
+    # ユーザー存在確認
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    
+    # 物件が存在するか確認
+    property_item = db.query(Property).filter(Property.id == payload.property_id).first()
+    if property_item is None:
+        raise HTTPException(status_code=404, detail="物件が見つかりません")
+    
+    # 既に同じ物件をお気に入りしてる場合
+    already_favorite = db.query(Favorite).filter(
+        Favorite.user_id == payload.user_id,
+        Favorite.property_id == payload.property_id,
+    ).first()
+
+    if already_favorite is not None:
+        return already_favorite
+    
+    # 新規作成
+    favorite = Favorite(
+        user_id=payload.user_id,
+        property_id=payload.property_id,
+    )
+
+    db.add(favorite)
+    db.commit()
+    db.refresh(favorite)
+
+    return favorite
+
+#* お気に入り一覧取得API
+@app.get("/users/{user_id}/favorites", response_model=list[FavoriteResponse], summary="お気に入り一覧")
+def get_favorites(
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> list[FavoriteResponse]:
+    # ユーザーが存在するか確認
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    
+    # 新しい順で返す
+    #? order_by：結果の並び順を指定
+    #? id.desc()：idカラムを降順(descending)で並べる
+    items = db.query(Favorite).filter(Favorite.user_id == user_id).order_by(Favorite.id.desc()).all()
+    return items
+
+#* お気に入り削除API
+@app.delete("/favorites", summary="お気に入り削除")
+def delete_favorite(
+    user_id: int,
+    property_id: int,
+    db: Session = Depends(get_db),    
+) -> dict: # Dictionaryのdictで、辞書型で返すという意味
+    # 対象のお気に入りを検索
+    favorite = db.query(Favorite).filter(
+        Favorite.user_id == user_id,
+        Favorite.property_id == property_id,
+    ).first()
+
+    # ない場合でも成功扱いにしとく
+    if favorite is None:
+        return {"message": "削除対象は見つかりませんでした"}
+    
+    db.delete(favorite)
+    db.commit()
+
+    return {"message": "お気に入りを削除しました"}
+
+#* 比較履歴保存API
+@app.post("/compare-histories", response_model=CompareHistoryResponse, summary="比較履歴保存")
+def create_compare_history(
+    payload: CompareHistoryCreate,
+    db: Session = Depends(get_db),
+) -> CompareHistoryResponse:
+    # ユーザーが存在するか確認
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    # payloadの中身を全部取り出して、そのままCompareHistoryにコピー
+    history = CompareHistory(**payload.model_dump())
+
+    db.add(history)
+    db.commit()
+    db.refresh(history)
+
+    return history
+
+#* 比較履歴一覧取得API
+@app.get("/users/{user_id}/compare-histories", response_model=list[CompareHistoryResponse], summary="比較履歴一覧")
+def get_compare_histories(
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> list[CompareHistoryResponse]:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    
+    # 新しい順で返す
+    items = (
+        db.query(CompareHistory)
+        .filter(CompareHistory.user_id == user_id)
+        .order_by(CompareHistory.id.desc())
+        .all()
+    )
+    return items
+
+#* 比較履歴削除API
+@app.delete("/compare-histories/{history_id}", summary="比較履歴削除")
+def delete_compare_history(
+    history_id: int,
+    user_id: int, # 本人以外が削除できないように
+    db: Session = Depends(get_db),
+) -> dict:
+    history = db.query(CompareHistory).filter(
+        CompareHistory.id == history_id,
+        CompareHistory.user_id == user_id,
+    ).first()
+
+    if history is None:
+        return {"message": "削除対象は見つかりませんでした"}
+    
+    db.delete(history)
+    db.commit()
+
+    return {"message": "比較対象を削除しました"}
+
+#* 住所から緯度・経度を取得する関数(Google Geocoding APIを利用)
+def geocode_address(address: str) -> tuple[float, float] | None:
+    response = requests.get(
+        "https://maps.googleapis.com/maps/api/geocode/json",
+        params={
+            "address": address,
+            "key": settings.GOOGLE_MAPS_API_KEY,
+        },
+        timeout=5, # 5秒応答がなければ諦める
+    )
+    data = response.json()
+
+    # 住所が見つからない場合
+    if data.get("status") != "OK" or not data.get("results"):
+        return None
+    
+    location = data["results"][0]["geometry"]["location"]
+    return location["lat"], location["lng"]
 
 #* フロントから送られてきた物件情報をDBに保存するAPI(POST /propertiesのときに実行)
 @app.post("/properties", response_model=PropertyResponse, summary="物件を登録する")
@@ -129,6 +291,11 @@ def create_property(
     item = Property(**payload.model_dump())
     # **payload.model_dump()には送られてきたJSON形式のPropertyCreate型payloadがそのまま入る
 
+    # 住所から緯度経度を自動取得
+    coordinates = geocode_address(item.address)
+    if coordinates is not None:
+        item.latitude, item.longitude = coordinates
+
     # 保存してIDを確定
     db.add(item) # itemをDBに送る
     db.commit() # それを保存
@@ -138,6 +305,22 @@ def create_property(
 # ↑ この関数は変数に値を入れて、レスポンスとしてPropertyResponse型のものを返すよとしている
 # つまり今回はPropertyResponse型のitemを返してる
 
+#* 既存物件をまとめて座標変換するAPI
+@app.post("/properties/geocode-missing", summary="座標未設定の物件をまとめてジオコーディング")
+def geocode_missing_properties(db: Session = Depends(get_db)) -> dict:
+    # 緯度が未設定の物件だけ取得
+    items = db.query(Property).filter(Property.latitude.is_(None)).all()
+
+    updated = 0
+    for item in items:
+        coordinates = geocode_address(item.address)
+        if coordinates is not None:
+            item.latitude, item.longitude = coordinates
+            updated += 1
+    
+    db.commit()
+
+    return {"message": f"{updated}件の物件に座標を設定しました", "total_checked": len(items)}
 
 # GET /propertiesが呼ばれたら実行する関数(例えば、/propertiesにアクセスしたときに呼ばれる)
 @app.get("/properties", response_model=list[PropertyResponse])
@@ -212,6 +395,7 @@ def total_score(
     # 結果を同じスケールに揃えるため
     return weighted_score / total_weight
 
+
 def display_recommend(
         property_item: Property,
         min_rent: int,
@@ -220,37 +404,56 @@ def display_recommend(
         max_area: float,
         min_station: int,
         max_station: int,
-    # tupleは複数の値をセットにして返せる型
+        rent_weight: int,
+        area_weight: int,
+        station_weight: int,
+    #? tuple：複数の値をセットにして返せる型
 ) -> tuple[str, list[str]]:
-    # 理由を入れてく空のリストを用意
-    reasons: list[str] = []
-
     # 判断基準となる変数の定義
     rent_score = normalize_num(property_item.rent, min_rent, max_rent, True)
     area_score = normalize_num(property_item.area, min_area, max_area, False)
     station_score = normalize_num(property_item.station_minutes, min_station, max_station, True)
 
-    # 判断基準を書く
-    if rent_score >= 70:
-        # appendは追加するという意味
-        reasons.append("家賃が比較的抑えめです")
-    
-    if area_score >= 70:
-        reasons.append("面積に余裕があります")
-    
-    if station_score >= 70:
-        reasons.append("駅までのアクセスが良好です")
+    # 重みとスコアと良いときの文をセットで持つ
+    candidates = [
+        (rent_weight, rent_score, "家賃が比較的抑えめです"),
+        (area_weight, area_score, "面積に余裕があります"),
+        (station_weight, station_score, "駅までのアクセスが良好です"),
+    ]
 
-    # reasonsが空のときの処理(全部70点未満だった時)(reasonsがない時True)
+    # 重視度が高い項目を優先的に判定する
+    #? key=ooで何を基準に並べ替えするか決める
+    #? lambda c: c[0]：引数cを受け取り、c[0]を返す
+    #? reverse=True：大きい順、sort()だけなら小さい順
+    candidates.sort(key=lambda c: c[0], reverse=True)
+
+    # 理由を入れてく空のリストを用意
+    reasons: list[str] = []
+
+    # 重視度順に見ていき、70点以上のものを理由として採用
+    for weight, score, text in candidates:
+        if score >= 70:
+            reasons.append(text)
+
+    # reasonsが空の時の処理(→全部70未満のときも)
     if not reasons:
-        reasons.append("全体のバランスが取れた物件です")
+        reasons.append("全体のバランスの取れた物件です")
+
+    # 一番重視してる項目なのに粗コアが低い場合は弱点を書く
+    caution_map = {
+        "家賃が比較的抑えめです": "家賃はやや高めです",
+        "面積に余裕があります": "面積はやや手狭です",
+        "駅までのアクセスが良好です": "駅までのアクセスはやや不便です",
+    }
+    top_weight, top_score, top_text = candidates[0]
+    if top_weight > 0 and top_score < 40:
+        caution = caution_map[top_text]
+        if caution not in reasons:
+            reasons.append(caution)
     
-    # reasons[:2]は先頭から2個だけ取り出すスライス
-    # " / ".join(reasons[:2])は取り出した2個のスライスを/でつなげる
-    # 例:["家賃が安い", "駅が近い"] → "家賃が安い / 駅が近い"
+    # 例：["家賃が安い", "駅が近い"] → "家賃が安い / 駅が近い"
     summary: str = " / ".join(reasons[:2]) + "。"
 
-    # tuple[str, list[str]]にあった型のものを返す
     return summary, reasons
 
 
@@ -319,6 +522,9 @@ def send_recommend(
         max_area,
         min_station,
         max_station,
+        rent_weight,
+        area_weight,
+        station_weight,
     )
 
     # フロントに送るレコメンド

@@ -28,6 +28,19 @@ export type LoginResponse = {
     email: string;
 };
 
+// お気に入り追加時の型
+export type FavoriteRequest = {
+    user_id: number;
+    property_id: number;
+};
+
+// お気に入り取得時の型
+export type FavoriteResponse = {
+    id: number;
+    user_id: number;
+    property_id: number;
+};
+
 // 物件データの型定義(取得用)←DBから
 export type PropertyItem = {
     id: number;
@@ -36,6 +49,8 @@ export type PropertyItem = {
     rent: number;
     area: number;
     station_minutes: number;
+    latitude: number | null;
+    longitude: number | null;
 };
 
 // 物件データ(登録用)
@@ -69,4 +84,36 @@ export type SaveCompare = {
     minAreaFilter: string;
     maxStationFilter: string;
     favoriteOnly: boolean;
+};
+
+// 比較履歴保存時に送る型(バックエンドのCompareHistoryCreateに対応)
+export type CompareHistoryRequest = {
+    user_id: number;
+    selected_ids: number[];
+    rent_weight: number;
+    area_weight: number;
+    station_weight: number;
+    preset: string | null;
+    keyword: string | null;
+    max_rent_filter: string | null;
+    min_area_filter: string | null;
+    max_station_filter: string | null;
+    favorite_only: boolean;
+}
+
+// 比較履歴取得時に返ってくる型(バックエンドのCompareHistoryResponseに対応)
+export type CompareHistoryResponse = {
+    id: number;
+    user_id: number;
+    selected_ids: number[];
+    rent_weight: number;
+    area_weight: number;
+    station_weight: number;
+    preset: string | null;
+    keyword: string | null;
+    max_rent_filter: string | null;
+    min_area_filter: string | null;
+    max_station_filter: string | null;
+    favorite_only: boolean;
+    created_at: string; // JSONにはDate型が無いのでstringで受け取る
 };

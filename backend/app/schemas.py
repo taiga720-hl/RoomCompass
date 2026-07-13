@@ -2,6 +2,10 @@
 
 # pydanticはデータのバリデーションと型定義を自動でしてくれるライブラリ
 from pydantic import BaseModel, Field
+from datetime import datetime
+
+#! Create側は「必須項目」を明示
+#! Response側は「DBに保存された全項目を返す」
 
 #* 新規登録用
 #  新規登録時に受け取るデータ
@@ -63,6 +67,10 @@ class PropertyResponse(BaseModel):
     area: float
     station_minutes: int
 
+    # 緯度・経度
+    latitude: float | None
+    longitude: float | None
+
     class Config:
         # SQLAlchemyモデルをそのまま返せるようにする
         from_attributes = True
@@ -80,3 +88,56 @@ class RecommendResponse(BaseModel):
 
     # 理由一覧
     reasons: list[str]
+
+#* お気に入り追加用
+class FavoriteCreate(BaseModel):
+    user_id: int
+    property_id: int
+
+#* お気に入り一覧取得用
+class FavoriteResponse(BaseModel):
+    id: int
+    user_id: int
+    property_id: int
+
+    class Config:
+        from_attributes = True
+
+#* 比較履歴保存用(受け取るデータ)
+class CompareHistoryCreate(BaseModel):
+    user_id: int
+    selected_ids: list[int]
+
+    rent_weight: int = Field(ge=0)
+    area_weight: int = Field(ge=0)
+    station_weight: int = Field(ge=0)
+
+    preset: str | None = None
+    keyword: str | None = None
+    max_rent_filter: str | None = None
+    min_area_filter: str | None = None
+    max_station_filter: str | None = None
+
+    favorite_only: bool = False
+
+#* 比較履歴一覧・保存後に返すデータ
+class CompareHistoryResponse(BaseModel):
+    id: int
+    user_id: int
+    selected_ids: list[int]
+
+    rent_weight: int
+    area_weight: int
+    station_weight: int
+
+    preset: str | None
+    keyword: str | None
+    max_rent_filter: str | None
+    min_area_filter: str | None
+    max_station_filter: str | None
+
+    favorite_only: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

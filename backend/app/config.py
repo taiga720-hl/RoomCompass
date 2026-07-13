@@ -22,6 +22,12 @@ class Settings(BaseSettings): # BaseSettingsはenvファイルから値を自動
     # /0 はRedisのデータベース番号（通常は0を使用）
     REDIS_URL: str = "redis://redis:6379/0"
 
+    # Google Maps Geocoding API用キー(住所→緯度経度変換に使う)
+    GOOGLE_MAPS_API_KEY: str
+
+    # 本番フロントエンドのURL
+    # 例：https://roomcompass.vercel.app) ローカル開発時は未設定
+    FRONTEND_ORIGIN: str = ""
 
 # 全体で使う設定インスタンス
 settings = Settings()

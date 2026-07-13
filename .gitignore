@@ -1,0 +1,7 @@
+# Environment variables (secrets — DB credentials, API keys)
+RoomCompass.env
+.env
+.env.*
+
+# Temporary notes containing secrets (API keys, connection strings)
+Neonのメモ.txt
