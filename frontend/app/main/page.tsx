@@ -110,6 +110,16 @@ export default function MainPage() {
           </p>
         </Link>
 
+        <Link
+          href="/chat"
+          className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+        >
+          <p className="font-semibold text-slate-900">AIに物件相談する</p>
+          <p className="mt-1 text-sm text-slate-600">
+            AIに物件について質問できます
+          </p>
+        </Link>
+
         {/* ログイン済みの時は新規登録・ログインの導線を隠す(もう使わないため) */}
         {!user && (
           <>

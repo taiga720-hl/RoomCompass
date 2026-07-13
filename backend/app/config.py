@@ -25,6 +25,9 @@ class Settings(BaseSettings): # BaseSettingsはenvファイルから値を自動
     # Google Maps Geocoding API用キー(住所→緯度経度変換に使う)
     GOOGLE_MAPS_API_KEY: str
 
+    # Anthropic APIキー(AIとの物件相談チャット機能用)
+    ANTHROPIC_API_KEY: str
+
     # 本番フロントエンドのURL
     # 例：https://roomcompass.vercel.app) ローカル開発時は未設定
     FRONTEND_ORIGIN: str = ""

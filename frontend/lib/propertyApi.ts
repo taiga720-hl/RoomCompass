@@ -1,6 +1,6 @@
 // API通信の関数をまとめるエリア
 
-import { LoginRequest, LoginResponse, FavoriteRequest, FavoriteResponse, PropertyItem, PropertyRequest, Recommend, RegisterRequest, RegisterResponse, CompareHistoryRequest, CompareHistoryResponse, } from "./propertyTypes";
+import { LoginRequest, LoginResponse, FavoriteRequest, FavoriteResponse, PropertyItem, PropertyRequest, Recommend, RegisterRequest, RegisterResponse, CompareHistoryRequest, CompareHistoryResponse, ChatRequest, ChatResponse, } from "./propertyTypes";
 
 // ??の左側がnullまたはunderfinedなら右側を使う
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -209,6 +209,23 @@ export async function getRecommend(params: {
   // 通信失敗などのエラー
   if (!res.ok) {
     throw new Error("レコメンドの取得に失敗しました")
+  }
+
+  return res.json();
+}
+
+//* AIチャット送信API
+export async function sendChatMessage(payload: ChatRequest): Promise<ChatResponse> {
+  const res = await fetch(`${API_BASE_URL}/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error("AIとの通信に失敗しました");
   }
 
   return res.json();

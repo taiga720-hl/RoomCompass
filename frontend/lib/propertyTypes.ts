@@ -117,3 +117,19 @@ export type CompareHistoryResponse = {
     favorite_only: boolean;
     created_at: string; // JSONにはDate型が無いのでstringで受け取る
 };
+
+// AIチャット1件分のメッセージの型
+export type ChatMessage = {
+    role: "user" | "assistant";
+    content: string;
+};
+
+// チャット送信時に送るデータの型(バックエンドのChatRequestに対応)
+export type ChatRequest = {
+    messages: ChatMessage[];
+};
+
+// チャットの返信の型(バックエンドのChatResponseに対応)
+export type ChatResponse = {
+    reply: string;
+};

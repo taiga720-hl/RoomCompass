@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 import bcrypt
 import requests
+import anthropic
 from app.config import settings
 
 from app.db import Base, SessionLocal, engine
@@ -10,13 +11,17 @@ from app.schemas import (
     PropertyCreate, PropertyResponse, RecommendResponse, 
     UserCreate, UserLogin, UserResponse, LoginResponse, 
     FavoriteCreate, FavoriteResponse, 
-    CompareHistoryCreate, CompareHistoryResponse
+    CompareHistoryCreate, CompareHistoryResponse,
+    ChatRequest, ChatResponse
 )
 
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="RoomCompass API")
 
+
+#* Anthropicのクライアント
+anthropic_client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 # フロントからのアクセスを許可(CORS)
 # CORS：ブラウザのセキュリティ機能で、異なるドメインからのアクセスを制限する仕組み
@@ -536,3 +541,46 @@ def send_recommend(
         recommend=recommend,
         reasons=reasons,
     )
+
+#* AIとの物件相談チャットAPI
+@app.post("/chat", response_model=ChatResponse, summary="AI物件相談チャット")
+def chat_with_ai(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
+    # DBにある全物件を取得(AIにすでに知ってるとわからせるため)
+    items = db.query(Property).all()
+
+    # 物件情報を一見ずつAIが読みやすいテキストに変換
+    # 例: "ID:3 名前:タワマン東京 住所:... 家賃:70000円 面積:28.5㎡ 駅徒歩:2分"
+    property_lines = [
+        f"ID:{p.id} 名前:{p.name} 住所:{p.address} "
+        f"家賃:{p.rent}円 面積:{p.area}㎡ 駅徒歩:{p.station_minutes}分"
+        for p in items
+    ]
+    property_list_text = "\n".join(property_lines)
+
+    # AIへの指示
+    system_prompt = (
+        "あなたは物件比較サービス「RoomCompass」のAIアシスタントです。\n"
+        "以下は現在DBに登録されている物件の一覧です。ユーザーからの物件相談には、"
+        "この一覧に載っている物件の情報だけを使って答えてください。"
+        "一覧に無い物件については「登録されていません」と正直に答えてください。\n\n"
+        f"{property_list_text}"
+    )
+
+    # フロントから送られてきた会話履歴を、Anthropic APIが期待する形式に変換
+    #
+    conversation = [
+        {"role": m.role, "content": m.content} for m in payload.messages
+    ]
+
+    # Anthropic APIを呼び出す(Claude Opus 4.8使用)
+    response = anthropic_client.messages.create(
+        model="claude-opus-4-8",
+        max_tokens=1024,
+        system=system_prompt,
+        messages=conversation,
+    )
+
+    # 返信テキスト部分だけ取り出す
+    reply_text = response.content[0].text
+
+    return ChatResponse(reply=reply_text)

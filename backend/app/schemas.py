@@ -103,6 +103,21 @@ class FavoriteResponse(BaseModel):
     class Config:
         from_attributes = True
 
+#* AIチャット1件分のメッセージ(誰が発言したか＋内容)
+class ChatMessage(BaseModel):
+    # "user"か"AI"のどちらか
+    role: str
+    content: str = Field(min_length=1)
+
+#* フロントから送られてくるチャットリクエスト
+# 会話は毎回、全履歴を送る!
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+
+#* AIからの返信
+class ChatResponse(BaseModel):
+    reply: str
+
 #* 比較履歴保存用(受け取るデータ)
 class CompareHistoryCreate(BaseModel):
     user_id: int
