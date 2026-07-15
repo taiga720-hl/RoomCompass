@@ -56,6 +56,12 @@ class PropertyCreate(BaseModel):
     # 駅徒歩分数(0以上)
     station_minutes: int = Field(ge=0)
 
+    # 築年数
+    age_years: int | None = Field(default=None, ge=0)
+
+    # 構造
+    structure: str | None = None
+
 class PropertyResponse(BaseModel):
     # DBの主キー
     id: int
@@ -66,6 +72,8 @@ class PropertyResponse(BaseModel):
     rent: int
     area: float
     station_minutes: int
+    age_years: int | None
+    structure: str | None
 
     # 緯度・経度
     latitude: float | None
@@ -132,6 +140,8 @@ class CompareHistoryCreate(BaseModel):
     max_rent_filter: str | None = None
     min_area_filter: str | None = None
     max_station_filter: str | None = None
+    max_age_filter: str | None = None
+    structure_filter: str | None = None
 
     favorite_only: bool = False
 
@@ -150,6 +160,8 @@ class CompareHistoryResponse(BaseModel):
     max_rent_filter: str | None
     min_area_filter: str | None
     max_station_filter: str | None
+    max_age_filter: str | None
+    structure_filter: str | None
 
     favorite_only: bool
     created_at: datetime

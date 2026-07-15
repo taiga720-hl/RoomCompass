@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { PropertyItem } from "@/lib/propertyTypes";
+import { loadGoogleMapsScript } from "@/lib/googleMaps";
 
 type PropertyMapProps = {
   // 地図上にピン表示したい物件の配列(緯度経度が無いものは無視する)
@@ -12,33 +13,6 @@ type PropertyMapProps = {
   //? 関数 => void：なにも返さないという意味
   onToggleProperty: (propertyId: number) => void;
 };
-
-// Google Maps JavaScript APIのスクリプトを二重読み込みしないための管理用変数
-let googleMapsScriptPromise: Promise<void> | null = null;
-
-function loadGoogleMapsScript(): Promise<void> {
-  if (googleMapsScriptPromise) {
-    return googleMapsScriptPromise;
-  }
-
-  googleMapsScriptPromise = new Promise((resolve, reject) => {
-    if (typeof google !== "undefined" && google.maps) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () =>
-      reject(new Error("Google Mapsの読み込みに失敗しました"));
-
-    document.head.appendChild(script);
-  });
-
-  return googleMapsScriptPromise;
-}
 
 export default function PropertyMap({
   properties,

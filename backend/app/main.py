@@ -270,6 +270,7 @@ def geocode_address(address: str) -> tuple[float, float] | None:
         params={
             "address": address,
             "key": settings.GOOGLE_MAPS_API_KEY,
+            "language": "ja", # 日本語表記
         },
         timeout=5, # 5秒応答がなければ諦める
     )
@@ -281,6 +282,26 @@ def geocode_address(address: str) -> tuple[float, float] | None:
     
     location = data["results"][0]["geometry"]["location"]
     return location["lat"], location["lng"]
+
+#* 緯度経度から住所を取得する関数(Google Geocoding APIの逆引き)
+def reverse_geocode_location(latitude: float, longitude: float) -> str | None:
+    response = requests.get(
+        "https://maps.googleapis.com/maps/api/geocode/json",
+        params={
+            # "address="の代わりに"latlng="を使うと逆引きになる
+            "latlng": f"{latitude},{longitude}",
+            "key": settings.GOOGLE_MAPS_API_KEY,
+            "language": "ja", # 日本語表記
+        },
+        timeout=5,
+    )
+    data = response.json()
+
+    if data.get("status") != "OK" or not data.get("results"):
+        return None
+    
+    # 一番精度が高い結果の住所を使う
+    return data["results"][0]["formatted_address"]
 
 #* フロントから送られてきた物件情報をDBに保存するAPI(POST /propertiesのときに実行)
 @app.post("/properties", response_model=PropertyResponse, summary="物件を登録する")
@@ -326,6 +347,18 @@ def geocode_missing_properties(db: Session = Depends(get_db)) -> dict:
     db.commit()
 
     return {"message": f"{updated}件の物件に座標を設定しました", "total_checked": len(items)}
+
+
+#* 地図クリック地点の住所を取得するAPI(物件登録フォーム用)
+@app.get("/geocode/reverse", summary="緯度経度から住所を逆引き")
+def reverse_geocode(lat: float, lng: float) -> dict:
+    address = reverse_geocode_location(lat, lng)
+
+    if address is None:
+        raise HTTPException(status_code=404, detail="この地点の住所は見つかりませんでした")
+    
+    return {"address": address }
+
 
 # GET /propertiesが呼ばれたら実行する関数(例えば、/propertiesにアクセスしたときに呼ばれる)
 @app.get("/properties", response_model=list[PropertyResponse])

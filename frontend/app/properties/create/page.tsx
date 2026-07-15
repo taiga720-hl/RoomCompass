@@ -2,8 +2,9 @@
 
 // 物件を登録するページ
 
-import { createProperty } from "@/lib/propertyApi";
+import { createProperty, reverseGeocode } from "@/lib/propertyApi";
 import { PropertyRequest } from "@/lib/propertyTypes";
+import LocationPicker from "@/components/LocationPicker";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
@@ -18,6 +19,8 @@ export default function Create() {
   const [rent, setRent] = useState<string>("");
   const [area, setArea] = useState<string>("");
   const [station_minutes, setStation_minutes] = useState<string>("");
+  const [ageYears, setAgeYears] = useState<string>("");
+  const [structure, setStructure] = useState<string>("");
   // UI系の宣言
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
@@ -57,6 +60,14 @@ export default function Create() {
         throw new Error("駅徒歩分数は0以上の数値を入力してください");
       }
 
+      let ageYearsNum: number | null = null;
+      if (ageYears.trim() !== "") {
+        ageYearsNum = Number(ageYears);
+        if (Number.isNaN(ageYearsNum) || ageYearsNum < 0) {
+          throw new Error("築年数は0以上の数値を入力してください");
+        }
+      }
+
       // APIへ送るデータを型付きで作る
       const payload: PropertyRequest = {
         name: name.trim(),
@@ -64,6 +75,8 @@ export default function Create() {
         rent: rentNum,
         area: areaNum,
         station_minutes: station_minutes_Num,
+        age_years: ageYearsNum,
+        structure: structure === "" ? null : structure,
       };
 
       // 登録APIを実行
@@ -79,6 +92,8 @@ export default function Create() {
       setRent("");
       setArea("");
       setStation_minutes("");
+      setAgeYears("");
+      setStructure("");
 
       // 少し待ってから一覧ページに遷移
       // ↑すぐ遷移だとメッセージが見えないため
@@ -97,6 +112,17 @@ export default function Create() {
     } finally {
       // 成功/失敗に関係なくローディング解除
       setLoading(false);
+    }
+  }
+
+  // 地図をクリックした時の処理
+  async function handleSelectLocation(lat: number, lng: number) {
+    try {
+      const result = await reverseGeocode(lat, lng);
+      setAddress(result.address);
+    } catch {
+      setMessage("この地点の住所取得に失敗しました。住所を手入力してください");
+      setIsError(true);
     }
   }
 
@@ -139,6 +165,14 @@ export default function Create() {
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             placeholder="例: 東京都新宿区..."
           />
+        </div>
+
+        {/* 地図から選ぶ */}
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-slate-700">
+            地図から選ぶ(クリックで住所欄に自動入力されます)
+          </label>
+          <LocationPicker onSelectLocation={handleSelectLocation} />
         </div>
 
         {/* 数値入力3項目を横並び（小画面では縦並び） */}
@@ -186,6 +220,45 @@ export default function Create() {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
               placeholder="7"
             />
+          </div>
+
+          {/* 築年数(任意) */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">
+              築年数(任意)
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={ageYears}
+              onChange={(e) => setAgeYears(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              placeholder="不明なら空欄"
+            />
+          </div>
+
+          {/* 構造(任意) */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">
+              構造(任意)
+            </label>
+            <select
+              value={structure}
+              onChange={(e) => setStructure(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            >
+              <option value="">不明・未選択</option>
+              <option value="木造">木造</option>
+              <option value="軽量鉄骨造">軽量鉄骨造</option>
+              <option value="鉄骨造">鉄骨造</option>
+              <option value="鉄筋コンクリート造(RC)">
+                鉄筋コンクリート造(RC)
+              </option>
+              <option value="鉄骨鉄筋コンクリート造(SRC)">
+                鉄骨鉄筋コンクリート造(SRC)
+              </option>
+              <option value="その他">その他</option>
+            </select>
           </div>
         </div>
 

@@ -90,7 +90,7 @@ export async function deleteFavorite(userId: number, propertyId: number): Promis
   return res.json();
 }
 
-// 比較履歴保存API
+//* 比較履歴保存API
 export async function saveCompareHistory(
   payload: CompareHistoryRequest,
 ): Promise<CompareHistoryResponse> {
@@ -209,6 +209,21 @@ export async function getRecommend(params: {
   // 通信失敗などのエラー
   if (!res.ok) {
     throw new Error("レコメンドの取得に失敗しました")
+  }
+
+  return res.json();
+}
+
+//* 緯度経度から住所を逆引きするAPI(地図クリップ用)
+export async function reverseGeocode(lat: number, lng: number): Promise<{ address: string }> {
+  const query = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+
+  const res = await fetch(`${API_BASE_URL}/geocode/reverse?${query.toString()}`, {
+    method: "GET",
+  });
+
+  if (!res.ok) {
+    throw new Error("住所の取得に失敗しました");
   }
 
   return res.json();

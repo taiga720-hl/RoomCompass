@@ -22,7 +22,7 @@ class Settings(BaseSettings): # BaseSettingsはenvファイルから値を自動
     # /0 はRedisのデータベース番号（通常は0を使用）
     REDIS_URL: str = "redis://redis:6379/0"
 
-    # Google Maps Geocoding API用キー(住所→緯度経度変換に使う)
+    # Google Maps Geocoding API用キー(住所⇔緯度経度変換に使う)
     GOOGLE_MAPS_API_KEY: str
 
     # Anthropic APIキー(AIとの物件相談チャット機能用)

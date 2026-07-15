@@ -53,6 +53,12 @@ class Property(Base):
     # 駅徒歩分数
     station_minutes = Column(Integer, nullable=False)
 
+    # 築年数
+    age_years = Column(Integer, nullable=True)
+
+    # 建物の構造
+    structure = Column(String(50), nullable=True)
+
     # 緯度・経度(住所からGoogle Geocoding APIで自動取得)
     # latitude：緯度
     # longitude：経度
@@ -95,6 +101,8 @@ class CompareHistory(Base):
     max_rent_filter = Column(String(50), nullable=True)
     min_area_filter = Column(String(50), nullable=True)
     max_station_filter = Column(String(50), nullable=True)
+    max_age_filter = Column(String(50), nullable=True)
+    structure_filter = Column(String(50), nullable=True)
 
     # お気に入りのみ表示にしてたか?
     favorite_only = Column(Boolean, nullable=False, default=False)

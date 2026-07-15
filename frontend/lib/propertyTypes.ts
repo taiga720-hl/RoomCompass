@@ -49,6 +49,8 @@ export type PropertyItem = {
     rent: number;
     area: number;
     station_minutes: number;
+    age_years: number | null;
+    structure: string | null;
     latitude: number | null;
     longitude: number | null;
 };
@@ -61,6 +63,9 @@ export type PropertyRequest = {
     rent: number;
     area: number;
     station_minutes: number;
+    age_years: number | null;
+    structure: string | null;
+
 };
 
 // レコメンドの型定義
@@ -83,6 +88,8 @@ export type SaveCompare = {
     maxRentFilter: string;
     minAreaFilter: string;
     maxStationFilter: string;
+    maxAgeFilter: string;
+    structureFilter: string;
     favoriteOnly: boolean;
 };
 
@@ -98,6 +105,8 @@ export type CompareHistoryRequest = {
     max_rent_filter: string | null;
     min_area_filter: string | null;
     max_station_filter: string | null;
+    max_age_filter: string | null;
+    structure_filter: string | null;
     favorite_only: boolean;
 }
 
@@ -114,6 +123,8 @@ export type CompareHistoryResponse = {
     max_rent_filter: string | null;
     min_area_filter: string | null;
     max_station_filter: string | null;
+    max_age_filter: string | null;
+    structure_filter: string | null;
     favorite_only: boolean;
     created_at: string; // JSONにはDate型が無いのでstringで受け取る
 };

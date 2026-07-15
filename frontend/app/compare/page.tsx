@@ -77,6 +77,10 @@ export default function CompareProperties() {
   const [minAreaFilter, setMinAreaFilter] = useState<string>("");
   // 駅徒歩分数の上限
   const [maxStationFilter, setMaxStationFilter] = useState<string>("");
+  // 築年数の上限
+  const [maxAgeFilter, setMaxAgeFilter] = useState<string>("");
+  // 構造の絞り込み
+  const [structureFilter, setStructureFilter] = useState<string>("");
 
   // お気に入り機能の定義
   // お気に入りにした物件IDの配列
@@ -193,6 +197,14 @@ export default function CompareProperties() {
             setMaxStationFilter(
               typeof prev.maxStationFilter === "string"
                 ? prev.maxStationFilter
+                : "",
+            );
+            setMaxAgeFilter(
+              typeof prev.maxAgeFilter === "string" ? prev.maxAgeFilter : "",
+            );
+            setStructureFilter(
+              typeof prev.structureFilter === "string"
+                ? prev.structureFilter
                 : "",
             );
             setFavoriteOnly(
@@ -313,6 +325,8 @@ export default function CompareProperties() {
       maxRentFilter,
       minAreaFilter,
       maxStationFilter,
+      maxAgeFilter,
+      structureFilter,
       favoriteOnly,
     };
 
@@ -328,6 +342,8 @@ export default function CompareProperties() {
     maxRentFilter,
     minAreaFilter,
     maxStationFilter,
+    maxAgeFilter,
+    structureFilter,
     favoriteOnly,
     isRestoreDone,
   ]);
@@ -407,6 +423,8 @@ export default function CompareProperties() {
         max_rent_filter: maxRentFilter || null,
         min_area_filter: minAreaFilter || null,
         max_station_filter: maxStationFilter || null,
+        max_age_filter: maxAgeFilter || null,
+        structure_filter: structureFilter || null,
         favorite_only: favoriteOnly,
       });
 
@@ -431,6 +449,8 @@ export default function CompareProperties() {
     setMaxRentFilter(history.max_rent_filter ?? "");
     setMinAreaFilter(history.min_area_filter ?? "");
     setMaxStationFilter(history.max_station_filter ?? "");
+    setMaxAgeFilter(history.max_age_filter ?? "");
+    setStructureFilter(history.structure_filter ?? "");
     setFavoriteOnly(history.favorite_only);
 
     setHistoryMessage("比較条件を読み込みました");
@@ -475,6 +495,16 @@ export default function CompareProperties() {
         maxStationFilter === "" ||
         property.station_minutes <= Number(maxStationFilter);
 
+      // 築年数上限フィルタ(築年数が不明な物件は、上限指定時は対象外にする)
+      const matchesMaxAge =
+        maxAgeFilter === "" ||
+        (property.age_years !== null &&
+          property.age_years <= Number(maxAgeFilter));
+
+      // 構造フィルタ
+      const matchesStructure =
+        structureFilter === "" || property.structure === structureFilter;
+
       // お気に入りフィルタ
       const matchesFavorite =
         !favoriteOnly || favoriteIds.includes(property.id);
@@ -485,6 +515,8 @@ export default function CompareProperties() {
         matchesMaxRent &&
         matchesMinArea &&
         matchesMaxStation &&
+        matchesMaxAge &&
+        matchesStructure &&
         matchesFavorite
       );
     });
@@ -494,6 +526,8 @@ export default function CompareProperties() {
     maxRentFilter,
     minAreaFilter,
     maxStationFilter,
+    maxAgeFilter,
+    structureFilter,
     favoriteOnly,
     favoriteIds,
   ]);
@@ -778,7 +812,7 @@ export default function CompareProperties() {
             検索・絞り込み
           </p>
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {/* キーワード検索 */}
             <label className="block text-sm text-slate-700">
               キーワード
@@ -826,6 +860,40 @@ export default function CompareProperties() {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
               />
             </label>
+
+            {/* 築年数上限 */}
+            <label className="block text-sm text-slate-700">
+              築年数上限
+              <input
+                type="number"
+                value={maxAgeFilter}
+                onChange={(e) => setMaxAgeFilter(e.target.value)}
+                placeholder="例: 10"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+              />
+            </label>
+
+            {/* 構造 */}
+            <label className="block text-sm text-slate-700">
+              構造
+              <select
+                value={structureFilter}
+                onChange={(e) => setStructureFilter(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+              >
+                <option value="">指定なし</option>
+                <option value="木造">木造</option>
+                <option value="軽量鉄骨造">軽量鉄骨造</option>
+                <option value="鉄骨造">鉄骨造</option>
+                <option value="鉄筋コンクリート造(RC)">
+                  鉄筋コンクリート造(RC)
+                </option>
+                <option value="鉄骨鉄筋コンクリート造(SRC)">
+                  鉄骨鉄筋コンクリート造(SRC)
+                </option>
+                <option value="その他">その他</option>
+              </select>
+            </label>
           </div>
 
           {/* お気に入り物件のみ表示用 */}
@@ -851,6 +919,8 @@ export default function CompareProperties() {
                 setMaxRentFilter("");
                 setMinAreaFilter("");
                 setMaxStationFilter("");
+                setMaxAgeFilter("");
+                setStructureFilter("");
                 setFavoriteOnly(false);
               }}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -928,6 +998,12 @@ export default function CompareProperties() {
                     <p>家賃: {property.rent.toLocaleString()}円</p>
                     <p>面積: {property.area}㎡</p>
                     <p>駅徒歩: {property.station_minutes}分</p>
+                    {property.age_years !== null && (
+                      <p>築年数: {property.age_years}年</p>
+                    )}
+                    {property.structure !== null && (
+                      <p>構造: {property.structure}</p>
+                    )}
                   </div>
 
                   <div className="mt-4">
@@ -1238,6 +1314,12 @@ export default function CompareProperties() {
                     <p>家賃: {property.rent.toLocaleString()}円</p>
                     <p>面積: {property.area}㎡</p>
                     <p>駅徒歩: {property.station_minutes}分</p>
+                    {property.age_years !== null && (
+                      <p>築年数: {property.age_years}年</p>
+                    )}
+                    {property.structure !== null && (
+                      <p>構造: {property.structure}</p>
+                    )}
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
