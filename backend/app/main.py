@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import bcrypt
 import requests
 import anthropic
+import redis
 from app.config import settings
 
 from app.db import Base, SessionLocal, engine
@@ -22,6 +23,29 @@ app = FastAPI(title="RoomCompass API")
 
 #* Anthropicのクライアント
 anthropic_client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+# Redisクライアント(一日あたりのAIチャット利用回数を数えるため)
+redis_client = redis.from_url(settings.REDIS_URL)
+
+# 1ユーザーが一日に送信できるチャットの上限
+CHAT_DAILY_LIMIT = 30
+
+#* チャットのレート制限をチェックする関数
+def check_chat_rate_limit(user_id: int) -> None:
+    key = f"chat_limit:{user_id}"
+
+    #? Redisのincr：キーの値を+1して返す
+    count = redis_client.incr(key)
+
+    # 初回のリクエストのときだけ、24時間で自動的にリセットされるよう有効期限をセット
+    if count == 1:
+        redis_client.expire(key, 60 * 60 * 24)
+
+    if count > CHAT_DAILY_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"本日のAIチャット利用上限({CHAT_DAILY_LIMIT}件)に達しました"
+        )
 
 # フロントからのアクセスを許可(CORS)
 # CORS：ブラウザのセキュリティ機能で、異なるドメインからのアクセスを制限する仕組み
@@ -578,6 +602,9 @@ def send_recommend(
 #* AIとの物件相談チャットAPI
 @app.post("/chat", response_model=ChatResponse, summary="AI物件相談チャット")
 def chat_with_ai(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
+    # レート制限チェック
+    check_chat_rate_limit(payload.user_id)
+
     # DBにある全物件を取得(AIにすでに知ってるとわからせるため)
     items = db.query(Property).all()
 

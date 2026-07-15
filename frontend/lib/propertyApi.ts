@@ -240,7 +240,7 @@ export async function sendChatMessage(payload: ChatRequest): Promise<ChatRespons
   });
 
   if (!res.ok) {
-    throw new Error("AIとの通信に失敗しました");
+    throw new Error(`AIとの通信に失敗しました (${res.status})`);
   }
 
   return res.json();

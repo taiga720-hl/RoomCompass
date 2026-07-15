@@ -137,6 +137,7 @@ export type ChatMessage = {
 
 // チャット送信時に送るデータの型(バックエンドのChatRequestに対応)
 export type ChatRequest = {
+    user_id: number;
     messages: ChatMessage[];
 };
 

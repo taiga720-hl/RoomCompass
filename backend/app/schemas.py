@@ -120,6 +120,7 @@ class ChatMessage(BaseModel):
 #* フロントから送られてくるチャットリクエスト
 # 会話は毎回、全履歴を送る!
 class ChatRequest(BaseModel):
+    user_id: int
     messages: list[ChatMessage]
 
 #* AIからの返信

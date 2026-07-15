@@ -22,18 +22,39 @@ export default function ChatPage() {
   // 常に一番下までスクロールさせるための目印(空のdivをここに置く)
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // ログイン中ユーザーID(未ログインならnull)
+  const [userId, setUserId] = useState<number | null>(null);
+
   // メッセージが増えるたびに一番下へ自動スクロール
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // ログイン中ユーザーIDをlocalStorageから復元(main/compareページと同じ仕組み)
+  useEffect(() => {
+    async function restoreUser() {
+      const raw = window.localStorage.getItem("roomcompass-user");
+      if (!raw) return;
+
+      try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.userId === "number") {
+          setUserId(parsed.userId);
+        }
+      } catch {
+        // 壊れたデータが入ってた場合は未ログイン扱いのまま
+      }
+    }
+
+    restoreUser();
+  }, []);
+
   async function handleSend() {
-    // 空欄・送信中は何もしない
-    if (!input.trim() || loading) {
+    // 空欄・送信中・未ログインは何もしない
+    if (!input.trim() || loading || userId === null) {
       return;
     }
 
-    // 自分の発言をすぐ画面に追加(体感速度のため、返信を待たずに表示)
     const userMessage: ChatMessage = { role: "user", content: input };
     const nextMessages = [...messages, userMessage];
 
@@ -43,16 +64,24 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      // これまでの会話履歴を丸ごと送る(APIはステートレスなので毎回全部渡す)
-      const response = await sendChatMessage({ messages: nextMessages });
+      const response = await sendChatMessage({
+        user_id: userId,
+        messages: nextMessages,
+      });
 
-      // AIの返信を履歴に追加
       setMessages([
         ...nextMessages,
         { role: "assistant", content: response.reply },
       ]);
-    } catch {
-      setError("AIとの通信に失敗しました。もう一度お試しください。");
+    } catch (err) {
+      // 429(上限到達)の場合は専用メッセージ、それ以外は汎用メッセージ
+      if (err instanceof Error && err.message.includes("429")) {
+        setError(
+          "本日のAIチャット利用上限に達しました。また明日お試しください",
+        );
+      } else {
+        setError("AIとの通信に失敗しました。もう一度お試しください。");
+      }
     } finally {
       setLoading(false);
     }
@@ -63,6 +92,16 @@ export default function ChatPage() {
       className="mx-auto flex w-full max-w-2xl flex-col px-4 py-10"
       style={{ minHeight: "80vh" }}
     >
+      {/* 未ログイン時のバナー */}
+      {userId === null && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          AI相談機能はログイン後に利用できます。{" "}
+          <a href="/login" className="font-medium underline">
+            ログインする
+          </a>
+        </div>
+      )}
+
       {/* チャットウィンドウ全体(角丸+影で「アプリのウィンドウ」感を出す) */}
       <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
         {/* ヘッダーバー */}
@@ -198,14 +237,16 @@ export default function ChatPage() {
                 handleSend();
               }
             }}
-            placeholder="メッセージを入力"
+            placeholder={
+              userId === null ? "ログインしてください" : "メッセージを入力"
+            }
             className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            disabled={loading}
+            disabled={loading || userId === null}
           />
           <button
             type="button"
             onClick={handleSend}
-            disabled={loading}
+            disabled={loading || userId === null}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             送信
