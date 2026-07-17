@@ -1237,6 +1237,18 @@ export default function CompareProperties() {
           )}
         </div>
 
+        {/* 詳細グラフページへのリンク */}
+        {selectedProperties.length > 0 && (
+          <div className="mb-4">
+            <Link
+              href="/compare/analysis"
+              className="inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              詳細グラフを見る
+            </Link>
+          </div>
+        )}
+
         {/* 地図から物件を選ぶ */}
         {filteredProperties.length > 0 && (
           <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
