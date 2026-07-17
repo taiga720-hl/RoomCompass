@@ -62,6 +62,9 @@ class PropertyCreate(BaseModel):
     # 構造
     structure: str | None = None
 
+    # 物件写真のURL
+    image_url: str | None = None
+
 class PropertyResponse(BaseModel):
     # DBの主キー
     id: int
@@ -74,6 +77,7 @@ class PropertyResponse(BaseModel):
     station_minutes: int
     age_years: int | None
     structure: str | None
+    image_url: str | None
 
     # 緯度・経度
     latitude: float | None

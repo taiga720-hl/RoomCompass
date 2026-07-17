@@ -51,6 +51,7 @@ export type PropertyItem = {
     station_minutes: number;
     age_years: number | null;
     structure: string | null;
+    image_url: string | null;
     latitude: number | null;
     longitude: number | null;
 };
@@ -65,7 +66,7 @@ export type PropertyRequest = {
     station_minutes: number;
     age_years: number | null;
     structure: string | null;
-
+    image_url: string | null;
 };
 
 // レコメンドの型定義

@@ -59,6 +59,9 @@ class Property(Base):
     # 建物の構造
     structure = Column(String(50), nullable=True)
 
+    # 物件写真のURL(Cloudinaryにアップロード)
+    image_url = Column(String(500), nullable=True)
+
     # 緯度・経度(住所からGoogle Geocoding APIで自動取得)
     # latitude：緯度
     # longitude：経度

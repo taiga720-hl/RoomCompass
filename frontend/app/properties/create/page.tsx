@@ -4,9 +4,10 @@
 
 import { createProperty, reverseGeocode } from "@/lib/propertyApi";
 import { PropertyRequest } from "@/lib/propertyTypes";
+import { getCloudinaryUrl } from "@/lib/cloudinary";
 import LocationPicker from "@/components/LocationPicker";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import React, { FormEvent, useState } from "react";
 
 export default function Create() {
   const router = useRouter();
@@ -21,6 +22,9 @@ export default function Create() {
   const [station_minutes, setStation_minutes] = useState<string>("");
   const [ageYears, setAgeYears] = useState<string>("");
   const [structure, setStructure] = useState<string>("");
+  const [imageFile, setImageFile] = useState<File | null>(null); // File：ユーザーが選択したファイルを表すオブジェクト
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("");
+  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
   // UI系の宣言
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
@@ -68,6 +72,19 @@ export default function Create() {
         }
       }
 
+      // 画像が選択されていればCloudinaryにアップロードしてURL取得
+      let imageUrl: string | null = null;
+      if (imageFile) {
+        setUploadingImage(true);
+        try {
+          imageUrl = await getCloudinaryUrl(imageFile);
+        } catch {
+          throw new Error("画像のアップロードに失敗しました");
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+
       // APIへ送るデータを型付きで作る
       const payload: PropertyRequest = {
         name: name.trim(),
@@ -77,6 +94,7 @@ export default function Create() {
         station_minutes: station_minutes_Num,
         age_years: ageYearsNum,
         structure: structure === "" ? null : structure,
+        image_url: imageUrl,
       };
 
       // 登録APIを実行
@@ -94,6 +112,8 @@ export default function Create() {
       setStation_minutes("");
       setAgeYears("");
       setStructure("");
+      setImageFile(null);
+      setImagePreviewUrl("");
 
       // 少し待ってから一覧ページに遷移
       // ↑すぐ遷移だとメッセージが見えないため
@@ -115,7 +135,18 @@ export default function Create() {
     }
   }
 
-  // 地図をクリックした時の処理
+  //* 画像ファイルが選択されたときの処理
+  //? React.ChangeEvent<HTMLInputElement>：inputタグの値が変わったときのイベント
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageFile(file);
+    //? URL.createObjectURL：選択したファイルをブラウザ内だけで一時的に表示するためのURL
+    setImagePreviewUrl(URL.createObjectURL(file));
+  }
+
+  //* 地図をクリックした時の処理
   async function handleSelectLocation(lat: number, lng: number) {
     try {
       const result = await reverseGeocode(lat, lng);
@@ -262,14 +293,38 @@ export default function Create() {
           </div>
         </div>
 
+        {/* 物件写真(任意) */}
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-slate-700">
+            物件写真(任意)
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageSelect}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+          />
+          {imagePreviewUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imagePreviewUrl}
+              alt="プレビュー"
+              className="mt-2 h-40 w-full rounded-lg object-cover"
+            />
+          )}
+        </div>
+
         {/* 送信ボタン */}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || uploadingImage}
           className="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
-          {/* loadingのときは登録中で、じゃないときは登録するを表示 */}
-          {loading ? "登録中..." : "登録する"}
+          {uploadingImage
+            ? "画像アップロード中..."
+            : loading
+            ? "登録中..."
+            : "登録する"}
         </button>
       </form>
 

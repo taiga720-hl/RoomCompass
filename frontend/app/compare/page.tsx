@@ -975,6 +975,20 @@ export default function CompareProperties() {
                       : "border-slate-200 bg-white hover:bg-slate-50"
                   }`}
                 >
+                  {/* 物件写真 */}
+                  {property.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={property.image_url}
+                      alt={property.name}
+                      className="mb-3 h-32 w-full rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="mb-3 flex h-32 w-full items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
+                      写真無し
+                    </div>
+                  )}
+
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-slate-900">
@@ -1299,6 +1313,20 @@ export default function CompareProperties() {
                       : "border-slate-200"
                   }`}
                 >
+                  {/* 物件写真 */}
+                  {property.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={property.image_url}
+                      alt={property.name}
+                      className="mb-3 h-32 w-full rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="mb-3 flex h-32 w-full items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
+                      写真無し
+                    </div>
+                  )}
+
                   <p className="text-base font-semibold text-slate-900">
                     {property.name}
                   </p>

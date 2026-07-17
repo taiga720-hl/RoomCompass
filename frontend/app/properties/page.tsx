@@ -125,6 +125,7 @@ export default function PropertiesList() {
             <table className="min-w-full text-sm">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
+                  <th className="px-3 py-2 text-left">写真</th>
                   <th className="px-3 py-2 text-left">物件名</th>
                   <th className="px-3 py-2 text-left">住所</th>
                   <th className="px-3 py-2 text-right">家賃</th>
@@ -139,6 +140,20 @@ export default function PropertiesList() {
                 {/*              ↓ それをpropertyに入れてる */}
                 {properties.map((property) => (
                   <tr key={property.id} className="border-t border-slate-200">
+                    <td className="px-3 py-2">
+                      {property.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={property.image_url}
+                          alt={property.name}
+                          className="h-12 w-16 rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-16 items-center justify-center rounded-md bg-slate-100 text-xs text-slate-400">
+                          写真無し
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-2">{property.name}</td>
                     <td className="px-3 py-2">{property.address}</td>
                     <td className="px-3 py-2 text-right">
