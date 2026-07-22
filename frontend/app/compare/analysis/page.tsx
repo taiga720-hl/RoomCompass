@@ -29,12 +29,12 @@ import {
   getPropertyColor,
 } from "@/lib/scoring";
 
-export default function CompareAnalysis() {
+export default function CompareAnalysisPage() {
   // 物件一覧
   const [properties, setProperties] = useState<PropertyItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // /compare/page.tsxで選んだ内容
+  // /compareページで選んだ内容(localStorageから復元する)
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [rentWeight, setRentWeight] = useState<number>(40);
   const [areaWeight, setAreaWeight] = useState<number>(30);
@@ -170,7 +170,7 @@ export default function CompareAnalysis() {
             比較の詳細グラフ
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            /compareで選択した物件をもとに表示しています
+            比較ページで選択した物件をもとに表示しています
           </p>
         </div>
         <Link
@@ -183,164 +183,201 @@ export default function CompareAnalysis() {
 
       {selectedProperties.length === 0 ? (
         <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          物件が選択されていません。まず/compareで比較したい物件を選んでください。
+          物件が選択されていません。まず比較ページで比較したい物件を選んでください。
         </p>
       ) : (
-        <div className="mt-6 space-y-8">
-          {/* 総合スコアランキング */}
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">
-              総合スコアランキング
-            </h2>
-            <div className="mt-4 h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={rankedData}
-                  layout="vertical"
-                  margin={{ left: 24 }}
-                >
-                  <CartesianGrid horizontal={false} stroke="#e1e0d9" />
-                  <XAxis
-                    type="number"
-                    domain={[0, 100]}
-                    tick={{ fill: "#898781", fontSize: 12 }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={120}
-                    tick={{ fill: "#52514e", fontSize: 12 }}
-                  />
-                  <Tooltip
-                    formatter={(value) =>
-                      typeof value === "number" ? value.toFixed(1) : value
-                    }
-                  />
-                  <Bar dataKey="totalScore" radius={[0, 4, 4, 0]}>
-                    {rankedData.map((entry) => (
-                      <Cell key={entry.id} fill={entry.color} />
+        <div className="mt-6">
+          {/* 2×2のグリッドで4つのグラフを並べる(画面が狭い時は1列に自動で切り替わる) */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* 総合スコアランキング */}
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900">
+                総合スコアランキング
+              </h2>
+              <div className="mt-4 h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={rankedData}
+                    layout="vertical"
+                    margin={{ left: 24 }}
+                  >
+                    <CartesianGrid horizontal={false} stroke="#e1e0d9" />
+                    <XAxis
+                      type="number"
+                      domain={[0, 100]}
+                      tick={{ fill: "#898781", fontSize: 12 }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={120}
+                      tick={{ fill: "#52514e", fontSize: 12 }}
+                    />
+                    <Tooltip
+                      formatter={(value) =>
+                        typeof value === "number" ? value.toFixed(1) : value
+                      }
+                    />
+                    <Bar dataKey="totalScore" radius={[0, 4, 4, 0]}>
+                      {rankedData.map((entry) => (
+                        <Cell key={entry.id} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            {/* 項目バランス比較(レーダーチャート) */}
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900">
+                項目バランス比較
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                丸に近いほど「バランス型」、いびつな形ほど「一点特化型」です
+              </p>
+              <div className="mt-3 h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="#e1e0d9" />
+                    <PolarAngleAxis
+                      dataKey="axis"
+                      tick={{ fill: "#52514e", fontSize: 12 }}
+                    />
+                    <PolarRadiusAxis
+                      domain={[0, 100]}
+                      tick={{ fill: "#898781", fontSize: 10 }}
+                    />
+                    {chartData.map((property) => (
+                      <Radar
+                        key={property.id}
+                        name={property.name}
+                        dataKey={String(property.id)}
+                        stroke={property.color}
+                        fill={property.color}
+                        fillOpacity={0.2}
+                      />
                     ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
 
-          {/* 項目バランス比較(レーダーチャート) */}
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">
-              項目バランス比較
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
-              軸の外側ほど高得点。丸に近いほど「バランス型」、いびつな形ほど「一点特化型」です
-            </p>
-            <div className="mt-4 h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={radarData}>
-                  <PolarGrid stroke="#e1e0d9" />
-                  <PolarAngleAxis
-                    dataKey="axis"
-                    tick={{ fill: "#52514e", fontSize: 12 }}
-                  />
-                  <PolarRadiusAxis
-                    domain={[0, 100]}
-                    tick={{ fill: "#898781", fontSize: 10 }}
-                  />
-                  {chartData.map((property) => (
-                    <Radar
-                      key={property.id}
-                      name={property.name}
-                      dataKey={String(property.id)}
-                      stroke={property.color}
-                      fill={property.color}
-                      fillOpacity={0.2}
+            {/* 家賃×面積の分布(散布図) */}
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900">
+                家賃×面積の分布
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                左上に近いほど「安くて広い」物件です
+              </p>
+              <div className="mt-3 h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ left: 8, right: 24, bottom: 8 }}>
+                    <CartesianGrid stroke="#e1e0d9" />
+                    <XAxis
+                      type="number"
+                      dataKey="rent"
+                      name="家賃"
+                      unit="円"
+                      tick={{ fill: "#898781", fontSize: 12 }}
                     />
-                  ))}
-                  <Legend />
-                  <Tooltip />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          {/* 家賃×面積の分布(散布図) */}
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">
-              家賃×面積の分布
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
-              左上に近いほど「安くて広い」物件です
-            </p>
-            <div className="mt-4 h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart margin={{ left: 8, right: 24, bottom: 8 }}>
-                  <CartesianGrid stroke="#e1e0d9" />
-                  <XAxis
-                    type="number"
-                    dataKey="rent"
-                    name="家賃"
-                    unit="円"
-                    tick={{ fill: "#898781", fontSize: 12 }}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey="area"
-                    name="面積"
-                    unit="㎡"
-                    tick={{ fill: "#898781", fontSize: 12 }}
-                  />
-                  <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                  <Legend />
-                  {chartData.map((property) => (
-                    <Scatter
-                      key={property.id}
-                      name={property.name}
-                      data={[property]}
-                      fill={property.color}
+                    <YAxis
+                      type="number"
+                      dataKey="area"
+                      name="面積"
+                      unit="㎡"
+                      tick={{ fill: "#898781", fontSize: 12 }}
                     />
-                  ))}
-                </ScatterChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
+                    <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    {chartData.map((property) => (
+                      <Scatter
+                        key={property.id}
+                        name={property.name}
+                        data={[property]}
+                        fill={property.color}
+                      />
+                    ))}
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
 
-          {/* 重視度の内訳 */}
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">
-              現在の重視度の内訳
-            </h2>
-            <div className="mt-4 h-24">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={weightData}
-                  layout="vertical"
-                  stackOffset="expand"
-                >
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" hide />
-                  <Tooltip />
-                  <Legend />
-                  <Bar
-                    dataKey="家賃"
-                    stackId="weights"
-                    fill="#fb7185"
-                    radius={[4, 0, 0, 4]}
-                  />
-                  <Bar dataKey="面積" stackId="weights" fill="#38bdf8" />
-                  <Bar
-                    dataKey="駅徒歩"
-                    stackId="weights"
-                    fill="#fbbf24"
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
+            {/* 重視度の内訳 */}
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900">
+                現在の重視度の内訳
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                /compareで調整したスライダーの比率です
+              </p>
+
+              {/* 数値を大きく見せるサマリー行 */}
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p
+                    className="text-2xl font-bold"
+                    style={{ color: "#fb7185" }}
+                  >
+                    {rentWeight}
+                  </p>
+                  <p className="text-xs text-slate-500">家賃重視</p>
+                </div>
+                <div>
+                  <p
+                    className="text-2xl font-bold"
+                    style={{ color: "#38bdf8" }}
+                  >
+                    {areaWeight}
+                  </p>
+                  <p className="text-xs text-slate-500">面積重視</p>
+                </div>
+                <div>
+                  <p
+                    className="text-2xl font-bold"
+                    style={{ color: "#fbbf24" }}
+                  >
+                    {stationWeight}
+                  </p>
+                  <p className="text-xs text-slate-500">駅徒歩重視</p>
+                </div>
+              </div>
+
+              <div className="mt-6 h-16">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={weightData}
+                    layout="vertical"
+                    stackOffset="expand"
+                  >
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="name" hide />
+                    <Tooltip />
+                    <Bar
+                      dataKey="家賃"
+                      stackId="weights"
+                      fill="#fb7185"
+                      radius={[6, 0, 0, 6]}
+                    />
+                    <Bar dataKey="面積" stackId="weights" fill="#38bdf8" />
+                    <Bar
+                      dataKey="駅徒歩"
+                      stackId="weights"
+                      fill="#fbbf24"
+                      radius={[0, 6, 6, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          </div>
 
           {/* 5件以上選択時の注記 */}
           {chartData.length > 4 && (
-            <p className="text-xs text-slate-500">
+            <p className="mt-4 text-xs text-slate-500">
               ※5件目以降は同系色になるため、グラフ内の凡例・ラベルで物件名を確認してください
             </p>
           )}
