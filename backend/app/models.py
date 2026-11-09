@@ -113,3 +113,103 @@ class CompareHistory(Base):
     # 保存日時
     #? server_default=func.now()：DBが自動的に日時をセットしてくれる
     created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+
+#* 内見予定カレンダーモデル
+class ViewingSchedule(Base):
+    __tablename__ = "viewing_schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # どのユーザーの予定か
+    user_id = Column(Integer, nullable=False, index=True)
+
+    # どの物件の予定か
+    property_id = Column(Integer, nullable=False, index=True)
+
+    # 内見予定日時
+    scheduled_at = Column(DateTime, nullable=False)
+
+    # メモ(任意)
+    memo = Column(String(500), nullable=True)
+
+    # 登録日時
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+
+#* 物件口コミモデル
+class PropertyReview(Base):
+    __tablename__ = "property_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # 投稿したユーザー
+    user_id = Column(Integer, nullable=False, index=True)
+
+    # 口コミ対象の物件
+    property_id = Column(Integer, nullable=False, index=True)
+
+    # 星評価(1~5)
+    star = Column(Integer, nullable=False)
+
+    # コメント本文
+    comment = Column(String(1000), nullable=False)
+
+    # 投稿日時
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    # 更新日時
+    #? onupdate=func.now()：レコードがアップデートされる度にDB側が自動で現在時刻を入れてくれる
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+
+#* チャットルームモデル(DM・グループ共通の入れ物)
+class ChatRoom(Base):
+    __tablename__ = "chat_rooms"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # グループチャットの名前(DMならNullのまま)
+    name = Column(String(255), nullable=True)
+
+    # Trueのときグループチャット、FalseのときDM
+    is_group = Column(Boolean, nullable=False, default=False)
+
+    # 作成したユーザー
+    created_by = Column(Integer, nullable=False)
+
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+
+#* チャットルームの参加者モデル(誰がどのルーム入ってるか)
+class ChatRoomMember(Base):
+    __tablename__ = "chat_room_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # どのルームか
+    room_id = Column(Integer, nullable=False, index=True)
+
+    # どのユーザーか
+    user_id = Column(Integer, nullable=False, index=True)
+
+    joined_at = Column(DateTime, nullable=False, server_default=func.now())
+
+
+#* チャットメッセージモデル
+class RoomMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # どのルームへの投稿か
+    room_id = Column(Integer, nullable=False, index=True)
+
+    # 送信者
+    sender_id = Column(Integer, nullable=False)
+
+    # メッセージ本体
+    content = Column(String(2000), nullable=False)
+
+    created_at = Column(DateTime, nullable=False, server_default=func.now())

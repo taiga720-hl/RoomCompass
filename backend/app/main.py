@@ -7,13 +7,16 @@ import redis
 from app.config import settings
 
 from app.db import Base, SessionLocal, engine
-from app.models import Property, User, Favorite, CompareHistory
+from app.models import Property, User, Favorite, CompareHistory, ViewingSchedule, PropertyReview, ChatRoom, ChatRoomMember, RoomMessage
 from app.schemas import (
     PropertyCreate, PropertyResponse, RecommendResponse, 
     UserCreate, UserLogin, UserResponse, LoginResponse, 
     FavoriteCreate, FavoriteResponse, 
     CompareHistoryCreate, CompareHistoryResponse,
-    ChatRequest, ChatResponse
+    ChatRequest, ChatResponse,
+    ViewingScheduleCreate, ViewingScheduleResponse,
+    PropertyReviewCreate, PropertyReviewResponse,
+    ChatRoomCreate, ChatRoomResponse, RoomMessageCreate, RoomMessageResponse
 )
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -98,6 +101,18 @@ def verify_password(password: str, password_hash: str) -> bool:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "service": "backend"}
+
+
+#* 物件詳細取得API(1件だけ)
+@app.get("/properties/{property_id}", response_model=PropertyResponse, summary="物件詳細を取得")
+def get_property(property_id: int, db: Session = Depends(get_db)) -> PropertyResponse:
+    property_item = db.query(Property).filter(Property.id == property_id).first()
+
+    if property_item is None:
+        raise HTTPException(status_code=404, detail="物件が見つかりません")
+
+    return property_item
+
 
 #* ユーザー新規登録API
 @app.post("/users/register", response_model=UserResponse, summary="ユーザー登録")
@@ -644,3 +659,386 @@ def chat_with_ai(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatRes
     reply_text = response.content[0].text
 
     return ChatResponse(reply=reply_text)
+
+
+#* 内見予定登録API
+@app.post("/viewing-schedules", response_model=ViewingScheduleResponse, summary="内見予定を登録")
+def create_viewing_schedule(
+    payload: ViewingScheduleCreate,
+    db: Session = Depends(get_db)
+) -> ViewingScheduleResponse:
+    # ユーザーが存在するか確認
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    # 物件が存在するか
+    property_item = db.query(Property).filter(Property.id == payload.property_id).first()
+    if property_item is None:
+        raise HTTPException(status_code=404, detail="物件が見つかりません")
+    
+    schedule = ViewingSchedule(**payload.model_dump())
+
+    db.add(schedule)
+    db.commit()
+    db.refresh(schedule)
+
+    return schedule
+
+#* 内見予定一覧取得API
+@app.get(
+    "/users/{user_id}/viewing-schedules",
+    response_model=list[ViewingScheduleResponse],
+    summary="内見予定一覧"
+)
+def get_viewing_schedules(
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> list[ViewingScheduleResponse]:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    # 日付が早い順に返す
+    items = (
+        db.query(ViewingSchedule)
+        .filter(ViewingSchedule.user_id == user_id)
+        #? order_by()：()内の指示に従って並び替え
+        #? asc()：昇順
+        .order_by(ViewingSchedule.scheduled_at.asc())
+        .all()
+    )
+    return items
+
+#* 内見予定削除API
+@app.delete("/viewing-schedules/{schedule_id}", summary="内見予定削除")
+def delete_viewing_schedule(
+    schedule_id: int,
+    user_id: int, # 本人以外できないように
+    db: Session = Depends(get_db),
+) -> dict:
+    schedule = db.query(ViewingSchedule).filter(
+        ViewingSchedule.id == schedule_id,
+        ViewingSchedule.user_id == user_id,
+    ).first()
+
+    if schedule is None:
+        return {"message": "削除対象は見つかりませんでした"}
+
+    db.delete(schedule)
+    db.commit()
+
+    return {"message": "内見予定を削除しました"}
+
+
+#* 口コミ投稿・編集API
+#! 一人のユーザーが同じ物件に投稿できるのは一件まで！
+#! → 既に投稿済みなら「編集」、なければ「新規作成」
+@app.post("/properties/{property_id}/reviews", response_model=PropertyReviewResponse, summary="口コミを投稿・編集")
+# upsertは、「データがすでに存在すれば更新（UPDATE）し、存在しなければ新規追加（INSERT）する」という意味
+def upsert_property_review(
+    property_id: int,
+    payload: PropertyReviewCreate,
+    db: Session = Depends(get_db),
+) -> PropertyReviewResponse:
+    # URLのproperty_idと送られてきたデータの〃がズレてないか確認
+    if property_id != payload.property_id:
+        raise HTTPException(status_code=400, detail="物件IDが一致しません")
+
+    # ユーザーが存在するか確認
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    # 物件が存在するか確認
+    property_item = db.query(Property).filter(Property.id == property_id).first()
+    if property_item is None:
+        raise HTTPException(status_code=404, detail="物件が見つかりません")
+
+    # このユーザーが既にこの物件に口コミを投稿済みか確認
+    existing = (
+        db.query(PropertyReview).filter(
+            PropertyReview.user_id == payload.user_id,
+            PropertyReview.property_id == property_id,
+        )
+        .first()
+    )
+
+    if existing is not None:
+        # 既にあれば内容を上書き(編集)
+        existing.star = payload.star
+        existing.comment = payload.comment
+        db.commit()
+        db.refresh(existing)
+        review = existing
+    else:
+        # なければ新規作成
+        review = PropertyReview(
+            user_id=payload.user_id,
+            property_id=property_id,
+            star=payload.star,
+            comment=payload.comment,
+        )
+        db.add(review)
+        db.commit()
+        db.refresh(review)
+
+    # 投稿者名も一緒に返す
+    return PropertyReviewResponse(
+        id=review.id,
+        user_id=review.user_id,
+        property_id=review.property_id,
+        star=review.star,
+        comment=review.comment,
+        created_at=review.created_at,
+        updated_at=review.updated_at,
+        user_name=user.name,
+    )
+
+#* 口コミ一覧取得API
+#  口コミは複数件想定なので、返り値はリスト型
+@app.get("/properties/{property_id}/reviews", response_model=list[PropertyReviewResponse], summary="口コミ一覧を取得")
+def get_property_reviews(
+    property_id: int,
+    db: Session = Depends(get_db),
+) -> list[PropertyReviewResponse]:
+    #? join():2つのテーブルを紐づけて同時に取得するためのメソッド
+    rows = (
+        db.query(PropertyReview, User)
+        .join(User, PropertyReview.user_id == User.id)
+        .filter(PropertyReview.property_id == property_id)
+        .order_by(PropertyReview.created_at.desc())
+        .all()
+    )
+
+    return [
+        PropertyReviewResponse(
+            id=review.id,
+            user_id=review.user_id,
+            property_id=review.property_id,
+            star=review.star,
+            comment=review.comment,
+            created_at=review.created_at,
+            updated_at=review.updated_at,
+            user_name=user.name,
+        )
+        for review, user in rows
+    ]
+
+#* 口コミ削除API(自分の投稿だけ削除)
+@app.delete("/properties/{property_id}/reviews", summary="口コミ削除")
+def delete_property_review(
+    property_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> dict:
+    review = (
+        db.query(PropertyReview)
+        .filter(
+            PropertyReview.property_id == property_id,
+            PropertyReview.user_id == user_id,
+        )
+        .first()
+    )
+
+    if review is None:
+        return {"message": "削除対象は見つかりませんでした"}
+
+    db.delete(review)
+    db.commit()
+
+    return {"message": "口コミを削除しました"}
+
+
+
+#* ユーザー一覧取得API(DM相手、グループチャット作成に役立つ)
+@app.get("/users", response_model=list[UserResponse], summary="ユーザー一覧")
+def list_users(db: Session = Depends(get_db)) -> list[UserResponse]:
+    users = db.query(User).order_by(User.name.asc()).all()
+    return users
+
+
+#* 指定したユーザーたちで構成されてるルームを探す関数
+#! 同じメンバーで同じルームを複数作成するのを防ぐため
+#? set：重複を自動的に取り除いてくれる型
+def find_existing_dm_room(db: Session, member_id_set: set[int]) -> ChatRoom | None:
+    # DMのルームだけを対象に調べる
+    candidate_rooms = db.query(ChatRoom).filter(ChatRoom.is_group == False).all()
+
+    for room in candidate_rooms:
+        room_member_ids = {
+            m.user_id
+            for m in db.query(ChatRoomMember).filter(ChatRoomMember.room_id == room.id)
+        }
+        # 参加者の集合が完全一致の場合
+        if room_member_ids == member_id_set:
+            return room
+
+    return None
+
+
+#* ルームの情報を、レスポンス用の形(ChatRoomResponse)に組み立てる関数
+#  "自分以外"のメンバー名一覧を作るのがポイント(表示名に使うため)
+def build_chat_room_response(db: Session, room: ChatRoom, viewer_id: int) -> ChatRoomResponse:
+    members = db.query(ChatRoomMember).filter(ChatRoomMember.room_id == room.id).all()
+
+    # 自分(viewer_id)以外のuser_idだけ抜き出す
+    other_ids = [m.user_id for m in members if m.user_id != viewer_id]
+
+    # そのIDに対応する名前を取得
+    #? in_()：「IDがこのリストのどれかに一致する」という条件を作るメソッド
+    other_users = db.query(User).filter(User.id.in_(other_ids)).all()
+    member_names = [u.name for u in other_users]
+
+    return ChatRoomResponse(
+        id=room.id,
+        name=room.name,
+        is_group=room.is_group,
+        created_by=room.created_by,
+        created_at=room.created_at,
+        member_names=member_names,
+    )
+
+
+#* チャットルーム作成API
+#  is_groupがFalseならDM、Trueならグループ作成
+@app.post("/chat-rooms", response_model=ChatRoomResponse, summary="チャットルーム作成/DM開始")
+def create_chat_room(
+    payload: ChatRoomCreate,
+    db: Session = Depends(get_db),
+) -> ChatRoomResponse:
+    # 作成者自身も含めた参加者全員のIDをまとめる
+    #? set()：重複を自動的に取り除いてくれる型
+    member_id_set = set(payload.member_ids) | {payload.created_by}
+
+    if not payload.is_group:
+        if len(member_id_set) != 2:
+            raise HTTPException(status_code=400, detail="DMは相手を一人だけ指定してください")
+
+        # 既に同じ2人のDMルームが無いか確認し、あれば使い回す
+        existing_room = find_existing_dm_room(db, member_id_set)
+        if existing_room is not None:
+            return build_chat_room_response(db, existing_room, payload.created_by)
+
+    # 新しいルームを作成
+    room = ChatRoom(
+        name=payload.name,
+        is_group=payload.is_group,
+        created_by=payload.created_by,
+    )
+    db.add(room)
+    db.commit()
+    db.refresh(room)
+
+    # 参加者全員をchat_room_membersに登録
+    for member_id in member_id_set:
+        db.add(ChatRoomMember(room_id=room.id, user_id=member_id))
+    db.commit()
+
+    return build_chat_room_response(db, room, payload.created_by)
+
+
+#* 自分が参加しているチャットルーム一覧取得API
+@app.get(
+    "/users/{user_id}/chat-rooms",
+    response_model=list[ChatRoomResponse],
+    summary="チャットルーム一覧",
+)
+def get_chat_rooms(user_id: int, db: Session = Depends(get_db)) -> list[ChatRoomResponse]:
+    # 自分が参加しているルームIDを取得
+    my_memberships = db.query(ChatRoomMember).filter(ChatRoomMember.user_id == user_id).all()
+    room_ids = [m.room_id for m in my_memberships]
+
+    rooms = (
+        db.query(ChatRoom)
+        .filter(ChatRoom.id.in_(room_ids))
+        .order_by(ChatRoom.created_at.desc())
+        .all()
+    )
+
+    return [build_chat_room_response(db, room, user_id) for room in rooms]
+
+
+
+#* チャットルームのメッセージ一覧取得API
+@app.get(
+    "/chat-rooms/{room_id}/messages",
+    response_model=list[RoomMessageResponse],
+    summary="メッセージ一覧",
+)
+def get_room_messages(
+    room_id: int,
+    user_id: int,  # このユーザーが本当にこのルームの参加者か確認するため
+    db: Session = Depends(get_db),
+) -> list[RoomMessageResponse]:
+    # 参加者チェック(部外者がメッセージを覗けないようにする)
+    is_member = (
+        db.query(ChatRoomMember)
+        .filter(ChatRoomMember.room_id == room_id, ChatRoomMember.user_id == user_id)
+        .first()
+    )
+    if is_member is None:
+        raise HTTPException(status_code=403, detail="このルームのメンバーではありません")
+
+    # メッセージと送信者名を結合して取得(古い順)
+    rows = (
+        db.query(RoomMessage, User)
+        .join(User, RoomMessage.sender_id == User.id)
+        .filter(RoomMessage.room_id == room_id)
+        .order_by(RoomMessage.created_at.asc())
+        .all()
+    )
+
+    return [
+        RoomMessageResponse(
+            id=message.id,
+            room_id=message.room_id,
+            sender_id=message.sender_id,
+            sender_name=user.name,
+            content=message.content,
+            created_at=message.created_at,
+        )
+        for message, user in rows
+    ]
+
+#* メッセージ送信API
+@app.post(
+    "/chat-rooms/{room_id}/messages",
+    response_model=RoomMessageResponse,
+    summary="メッセージ送信",
+)
+def send_room_message(
+    room_id: int,
+    payload: RoomMessageCreate,
+    db: Session = Depends(get_db),
+) -> RoomMessageResponse:
+    # 参加者チェック
+    is_member = (
+        db.query(ChatRoomMember)
+        .filter(ChatRoomMember.room_id == room_id, ChatRoomMember.user_id == payload.sender_id)
+        .first()
+    )
+    if is_member is None:
+        raise HTTPException(status_code=403, detail="このルームのメンバーではありません")
+
+    sender = db.query(User).filter(User.id == payload.sender_id).first()
+    if sender is None:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    message = RoomMessage(
+        room_id=room_id,
+        sender_id=payload.sender_id,
+        content=payload.content,
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    return RoomMessageResponse(
+        id=message.id,
+        room_id=message.room_id,
+        sender_id=message.sender_id,
+        sender_name=sender.name,
+        content=message.content,
+        created_at=message.created_at,
+    )

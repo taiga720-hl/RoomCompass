@@ -173,3 +173,111 @@ class CompareHistoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+#* 内見予定登録用
+class ViewingScheduleCreate(BaseModel):
+    user_id: int
+    property_id: int
+
+    # 内見予定日時
+    scheduled_at: datetime
+
+    # メモ(任意)
+    memo: str | None = None
+
+
+#* 内見予定一覧
+class ViewingScheduleResponse(BaseModel):
+    id: int
+    user_id: int
+    property_id: int
+    scheduled_at: datetime
+    memo: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+#* 口コミ投稿用(受け取るデータ)
+class PropertyReviewCreate(BaseModel):
+    user_id: int
+    property_id: int
+
+    #? ge=1, le=5：1以上5以下の数値だけ受け取る
+    star: int = Field(ge=1, le=5)
+
+    comment: str = Field(min_length=1, max_length=1000)
+
+
+#* 口コミ表示用(返すデータ)
+class PropertyReviewResponse(BaseModel):
+    id: int
+    user_id: int
+    property_id: int
+    star: int
+    comment: str
+    created_at: datetime
+    updated_at: datetime
+
+    # 投稿者の表示名
+    user_name: str
+
+    class Config:
+        from_attributes = True
+
+
+
+#* チャットルーム作成用(DM開始もグループチャット作成もこれ1つでOK)
+class ChatRoomCreate(BaseModel):
+    # 作成者
+    created_by: int
+
+    # 招待したい相手のユーザーIDのリスト
+    # DMなら一人、グループなら複数人を指定
+    member_ids: list[int]
+
+    # グループだけ名前を入れる(DMはNoneのまま)
+    name: str | None = None
+
+    # Trueのときグループを作る、FalseのときDMを開始する
+    is_group: bool = False
+
+
+#* チャットルームレスポンス用
+class ChatRoomResponse(BaseModel):
+    id: int
+    name: str | None
+    is_group: bool
+    created_by: int
+    created_at: datetime
+
+    # このルームの自分以外の参加者一覧
+    # DMの場合の表示名→相手が太郎なら「太郎」
+    # グループの場合の表示名→メンバーが太郎、花男なら「太郎・花男」
+    member_names: list[str]
+
+    class Config:
+        from_attributes = True
+
+
+#* メッセージ送信用
+class RoomMessageCreate(BaseModel):
+    sender_id: int
+    content: str = Field(min_length=1, max_length=2000)
+
+
+#* メッセージ表示用
+class RoomMessageResponse(BaseModel):
+    id: int
+    room_id: int
+    sender_id: int
+
+    # 送信者の名前
+    sender_name: str
+
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
