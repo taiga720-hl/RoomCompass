@@ -5,3 +5,7 @@ RoomCompass.env
 
 # Temporary notes containing secrets (API keys, connection strings)
 Neonのメモ.txt
+
+# Python bytecode
+__pycache__/
+*.pyc
