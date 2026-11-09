@@ -20,10 +20,16 @@ import {
   CompareHistoryResponse,
 } from "@/lib/propertyTypes";
 import { useEffect, useState, useMemo } from "react";
+import { History, ListChecks, MapPin, Search, SlidersHorizontal } from "lucide-react";
 
 import PropertyMap from "@/components/PropertyMap";
+import SquareTile from "@/components/SquareTile";
+import Modal from "@/components/Modal";
 
 import Link from "next/link";
+
+// どのタイルのモーダルが開いているか(nullなら何も開いていない)
+type SectionKey = "filter" | "properties" | "weights" | "history" | "map";
 
 export default function CompareProperties() {
   // 比較情報の保存キー
@@ -103,6 +109,9 @@ export default function CompareProperties() {
 
   // 履歴に関するメッセージ
   const [historyMessage, setHistoryMessage] = useState<string>("");
+
+  // 今どのタイルのモーダルが開いているか
+  const [openSection, setOpenSection] = useState<SectionKey | null>(null);
 
   //* 一覧取得関数
   async function loadProperties() {
@@ -532,6 +541,17 @@ export default function CompareProperties() {
     favoriteIds,
   ]);
 
+  //* 検索・絞り込み条件が何か1つでも変更されているか(バッジ表示用)
+  const activeFilterCount = [
+    keyword !== "",
+    maxRentFilter !== "",
+    minAreaFilter !== "",
+    maxStationFilter !== "",
+    maxAgeFilter !== "",
+    structureFilter !== "",
+    favoriteOnly,
+  ].filter(Boolean).length;
+
   //* 選択済み物件のみ抜き出す
   // filter：条件に合う要素だけを残して新しい配列を作るメソッド
   // 配列.filter((要素) => 条件)
@@ -773,113 +793,199 @@ export default function CompareProperties() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8">
+    <main className="mx-auto w-full max-w-6xl px-6 py-16 sm:px-8">
       {/* ページタイトル */}
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-        物件比較
-      </h1>
-      <p className="mt-2 text-sm text-slate-600">
-        比較したい物件を選択してください
-      </p>
-
-      {/* 未ログイン時のバナー */}
-      {userId === null && (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          お気に入り・比較履歴の保存はログイン後に利用できます。{" "}
-          <Link href="/login" className="font-medium underline">
-            ログインする
-          </Link>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
+            RoomCompass
+          </p>
+          <h1 className="mt-3 font-serif text-3xl text-slate-900">
+            物件比較
+          </h1>
+          <p className="mt-3 text-sm text-slate-500">
+            比較したい物件を選択してください
+          </p>
         </div>
-      )}
 
-      {/* 再読み込みボタン */}
-      <div className="mt-4">
+        {/* 再読み込みボタン */}
         <button
           onClick={loadProperties}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="text-xs text-slate-400 underline-offset-4 transition hover:text-slate-900 hover:underline"
         >
           再読み込み
         </button>
       </div>
 
-      {/* 一覧表示エリア */}
-      <section className="mt-6">
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">物件一覧</h2>
+      {/* 未ログイン時のバナー */}
+      {userId === null && (
+        <p className="mt-4 text-sm text-slate-500">
+          お気に入り・比較履歴の保存はログイン後に利用できます。{" "}
+          <Link
+            href="/login"
+            className="font-medium text-slate-900 underline underline-offset-4"
+          >
+            ログインする
+          </Link>
+        </p>
+      )}
 
-        {/* 検索・絞り込みフォーム */}
-        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-sm font-semibold text-slate-900">
-            検索・絞り込み
-          </p>
+      {/* ここから下、各セクションを正方形タイルにして、クリックしたらモーダルで中身を見せる形にしている */}
+      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+        <SquareTile
+          title="検索・絞り込み"
+          icon={<Search size={18} />}
+          badge={activeFilterCount > 0 ? `${activeFilterCount}件の条件` : "条件なし"}
+          onClick={() => setOpenSection("filter")}
+          preview={
+            // 検索欄っぽい、細長いピル形状を並べただけの装飾
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="h-2 w-16 rounded-full bg-current" />
+              <div className="h-2 w-10 rounded-full bg-current" />
+              <div className="h-2 w-12 rounded-full bg-current" />
+            </div>
+          }
+        />
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <SquareTile
+          title="物件一覧"
+          icon={<ListChecks size={18} />}
+          badge={`${filteredProperties.length}件`}
+          onClick={() => setOpenSection("properties")}
+          preview={
+            // 小さいカードが並んでるのを表現する2×2のマス目
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="h-6 w-6 rounded-md bg-current" />
+              <div className="h-6 w-6 rounded-md bg-current" />
+              <div className="h-6 w-6 rounded-md bg-current" />
+              <div className="h-6 w-6 rounded-md bg-current" />
+            </div>
+          }
+        />
+
+        <SquareTile
+          title="重み調整"
+          icon={<SlidersHorizontal size={18} />}
+          badge={preset ?? "カスタム調整"}
+          onClick={() => setOpenSection("weights")}
+          preview={
+            // スライダーバーを表現した、長さの違う3本の線
+            <div className="flex flex-col gap-2">
+              <div className="h-1.5 w-20 rounded-full bg-current" />
+              <div className="h-1.5 w-12 rounded-full bg-current" />
+              <div className="h-1.5 w-16 rounded-full bg-current" />
+            </div>
+          }
+        />
+
+        <SquareTile
+          title="比較履歴"
+          icon={<History size={18} />}
+          badge={userId !== null ? `${histories.length}件` : "ログイン後に利用可"}
+          onClick={() => setOpenSection("history")}
+          preview={
+            // 履歴一覧を表現した横線3本
+            <div className="flex flex-col gap-2">
+              <div className="h-1.5 w-20 rounded-full bg-current" />
+              <div className="h-1.5 w-20 rounded-full bg-current" />
+              <div className="h-1.5 w-20 rounded-full bg-current" />
+            </div>
+          }
+        />
+
+        {filteredProperties.length > 0 && (
+          <SquareTile
+            title="地図から選ぶ"
+            icon={<MapPin size={18} />}
+            badge={`${filteredProperties.length}件表示中`}
+            onClick={() => setOpenSection("map")}
+            preview={
+              // 地図上のピンを表現した点の散らばり
+              <div className="relative h-12 w-16">
+                <div className="absolute left-1 top-1 h-2.5 w-2.5 rounded-full bg-current" />
+                <div className="absolute right-2 top-4 h-2.5 w-2.5 rounded-full bg-current" />
+                <div className="absolute bottom-0 left-6 h-2.5 w-2.5 rounded-full bg-current" />
+              </div>
+            }
+          />
+        )}
+      </div>
+
+      {/* 検索・絞り込みモーダル */}
+      <Modal
+        open={openSection === "filter"}
+        onClose={() => setOpenSection(null)}
+        title="検索・絞り込み"
+        icon={<Search size={16} />}
+      >
+          <div className="grid gap-x-6 gap-y-6 md:grid-cols-2 lg:grid-cols-3">
             {/* キーワード検索 */}
-            <label className="block text-sm text-slate-700">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400">
               キーワード
               <input
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder="物件名・住所で検索"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900"
               />
             </label>
 
             {/* 家賃上限 */}
-            <label className="block text-sm text-slate-700">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400">
               家賃上限
               <input
                 type="number"
                 value={maxRentFilter}
                 onChange={(e) => setMaxRentFilter(e.target.value)}
                 placeholder="例: 80000"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900"
               />
             </label>
 
             {/* 面積下限 */}
-            <label className="block text-sm text-slate-700">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400">
               面積下限
               <input
                 type="number"
                 value={minAreaFilter}
                 onChange={(e) => setMinAreaFilter(e.target.value)}
                 placeholder="例: 25"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900"
               />
             </label>
 
             {/* 駅徒歩上限 */}
-            <label className="block text-sm text-slate-700">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400">
               駅徒歩上限
               <input
                 type="number"
                 value={maxStationFilter}
                 onChange={(e) => setMaxStationFilter(e.target.value)}
                 placeholder="例: 10"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900"
               />
             </label>
 
             {/* 築年数上限 */}
-            <label className="block text-sm text-slate-700">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400">
               築年数上限
               <input
                 type="number"
                 value={maxAgeFilter}
                 onChange={(e) => setMaxAgeFilter(e.target.value)}
                 placeholder="例: 10"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900"
               />
             </label>
 
             {/* 構造 */}
-            <label className="block text-sm text-slate-700">
+            <label className="block text-xs font-medium uppercase tracking-wider text-slate-400">
               構造
               <select
                 value={structureFilter}
                 onChange={(e) => setStructureFilter(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900"
               >
                 <option value="">指定なし</option>
                 <option value="木造">木造</option>
@@ -897,7 +1003,7 @@ export default function CompareProperties() {
           </div>
 
           {/* お気に入り物件のみ表示用 */}
-          <div className="mt-3">
+          <div className="mt-6">
             <label className="inline-flex items-center gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
@@ -911,7 +1017,7 @@ export default function CompareProperties() {
           </div>
 
           {/* 条件リセットボタン */}
-          <div className="mt-3">
+          <div className="mt-4">
             <button
               type="button"
               onClick={() => {
@@ -923,139 +1029,140 @@ export default function CompareProperties() {
                 setStructureFilter("");
                 setFavoriteOnly(false);
               }}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="text-sm text-slate-400 underline-offset-4 transition hover:text-slate-900 hover:underline"
             >
               条件をリセット
             </button>
           </div>
-        </div>
+      </Modal>
 
-        {/* 読み込み中 */}
-        {loading && (
-          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            読み込み中...
-          </p>
-        )}
+      {/* 物件一覧モーダル */}
+      <Modal
+        open={openSection === "properties"}
+        onClose={() => setOpenSection(null)}
+        title="物件一覧"
+        icon={<ListChecks size={16} />}
+        size="lg"
+      >
+          {/* 読み込み中 */}
+          {loading && <p className="text-sm text-slate-500">読み込み中...</p>}
 
-        {/* エラー */}
-        {!loading && errMessage && (
-          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {errMessage}
-          </p>
-        )}
+          {/* エラー */}
+          {!loading && errMessage && (
+            <p className="text-sm text-rose-600">{errMessage}</p>
+          )}
 
-        {/* データなし */}
-        {!loading && !errMessage && properties.length === 0 && (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            比較できる物件がまだありません
-          </p>
-        )}
-
-        {/* 検索条件に一致する物件がないとき */}
-        {!loading &&
-          !errMessage &&
-          properties.length > 0 &&
-          filteredProperties.length === 0 && (
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-              条件に一致する物件が見つかりません
+          {/* データなし */}
+          {!loading && !errMessage && properties.length === 0 && (
+            <p className="text-sm text-slate-500">
+              比較できる物件がまだありません
             </p>
           )}
 
-        {!loading && !errMessage && filteredProperties.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredProperties.map((property) => {
-              const isSelected = selectedIds.includes(property.id);
+          {/* 検索条件に一致する物件がないとき */}
+          {!loading &&
+            !errMessage &&
+            properties.length > 0 &&
+            filteredProperties.length === 0 && (
+              <p className="text-sm text-slate-500">
+                条件に一致する物件が見つかりません
+              </p>
+            )}
 
-              return (
-                <label
-                  key={property.id}
-                  className={`cursor-pointer rounded-xl border p-4 shadow-sm transition ${
-                    isSelected
-                      ? "border-slate-900 bg-slate-50"
-                      : "border-slate-200 bg-white hover:bg-slate-50"
-                  }`}
-                >
-                  {/* 物件写真 */}
-                  {property.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={property.image_url}
-                      alt={property.name}
-                      className="mb-3 h-32 w-full rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="mb-3 flex h-32 w-full items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
-                      写真無し
-                    </div>
-                  )}
+          {!loading && !errMessage && filteredProperties.length > 0 && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredProperties.map((property) => {
+                const isSelected = selectedIds.includes(property.id);
 
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">
-                        {property.name}
-                      </p>
-                      {/*                                        ↓ line-clamp-1は一行目を超えてからは...で省略される */}
-                      <p className="mt-1 text-sm text-slate-600 line-clamp-1">
-                        {property.address}
-                      </p>
-                    </div>
-
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => checkProperty(property.id)}
-                      className="mt-1 h-4 w-4"
-                    />
-                  </div>
-
-                  <div className="mt-4 space-y-1 text-sm text-slate-700">
-                    <p>家賃: {property.rent.toLocaleString()}円</p>
-                    <p>面積: {property.area}㎡</p>
-                    <p>駅徒歩: {property.station_minutes}分</p>
-                    {property.age_years !== null && (
-                      <p>築年数: {property.age_years}年</p>
+                return (
+                  <label
+                    key={property.id}
+                    className={`cursor-pointer rounded-lg border p-4 transition ${
+                      isSelected
+                        ? "border-slate-900 bg-slate-50"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
+                    }`}
+                  >
+                    {/* 物件写真 */}
+                    {property.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={property.image_url}
+                        alt={property.name}
+                        className="mb-3 h-32 w-full rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="mb-3 flex h-32 w-full items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
+                        写真無し
+                      </div>
                     )}
-                    {property.structure !== null && (
-                      <p>構造: {property.structure}</p>
-                    )}
-                  </div>
 
-                  <div className="mt-4">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        //? labelで囲まれてるのでチェックボックスまで作動してしまう可能性がある
-                        //! → preventDefault()でクリック連動を止める
-                        e.preventDefault();
-                        toggleFavorite(property.id);
-                      }}
-                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                        favoriteIds.includes(property.id)
-                          ? "border-amber-300 bg-amber-50 text-amber-700"
-                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {favoriteIds.includes(property.id)
-                        ? "お気に入り削除"
-                        : "お気に入り追加"}
-                      {/* ?がTrueのとき、:がFlaseのとき */}
-                    </button>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {property.name}
+                        </p>
+                        {/*                                        ↓ line-clamp-1は一行目を超えてからは...で省略される */}
+                        <p className="mt-1 text-sm text-slate-600 line-clamp-1">
+                          {property.address}
+                        </p>
+                      </div>
 
-      {/* 比較結果エリア */}
-      <section className="mt-10">
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">比較結果</h2>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => checkProperty(property.id)}
+                        className="mt-1 h-4 w-4"
+                      />
+                    </div>
 
-        {/* 重み調整UI */}
-        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-sm font-semibold text-slate-900">重み調整</p>
+                    <div className="mt-4 space-y-1 text-sm text-slate-700">
+                      <p>家賃: {property.rent.toLocaleString()}円</p>
+                      <p>面積: {property.area}㎡</p>
+                      <p>駅徒歩: {property.station_minutes}分</p>
+                      {property.age_years !== null && (
+                        <p>築年数: {property.age_years}年</p>
+                      )}
+                      {property.structure !== null && (
+                        <p>構造: {property.structure}</p>
+                      )}
+                    </div>
 
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          //? labelで囲まれてるのでチェックボックスまで作動してしまう可能性がある
+                          //! → preventDefault()でクリック連動を止める
+                          e.preventDefault();
+                          toggleFavorite(property.id);
+                        }}
+                        className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                          favoriteIds.includes(property.id)
+                            ? "border-amber-300 bg-amber-50 text-amber-700"
+                            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {favoriteIds.includes(property.id)
+                          ? "お気に入り削除"
+                          : "お気に入り追加"}
+                        {/* ?がTrueのとき、:がFlaseのとき */}
+                      </button>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+      </Modal>
+
+      {/* 重み調整モーダル */}
+      <Modal
+        open={openSection === "weights"}
+        onClose={() => setOpenSection(null)}
+        title="重み調整"
+        icon={<SlidersHorizontal size={16} />}
+      >
           <div className="space-y-3 text-sm">
             {/* 重視プリセット */}
             <div className="mb-4">
@@ -1166,17 +1273,21 @@ export default function CompareProperties() {
               />
             </label>
           </div>
-        </div>
+      </Modal>
 
-        {/* 比較履歴 */}
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-slate-900">比較履歴</p>
+      {/* 比較履歴モーダル */}
+      <Modal
+        open={openSection === "history"}
+        onClose={() => setOpenSection(null)}
+        title="比較履歴"
+        icon={<History size={16} />}
+      >
+          <div className="flex items-center justify-end">
             <button
               type="button"
               onClick={saveCurrentCompare}
               disabled={savingHistory}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-50"
             >
               {savingHistory ? "保存中..." : "現在の条件を保存"}
             </button>
@@ -1187,23 +1298,23 @@ export default function CompareProperties() {
           )}
 
           {userId === null && (
-            <p className="mt-3 text-sm text-slate-500">
+            <p className="mt-4 text-sm text-slate-500">
               比較履歴の保存・閲覧はログイン後に利用できます
             </p>
           )}
 
           {userId !== null && histories.length === 0 && (
-            <p className="mt-3 text-sm text-slate-500">
+            <p className="mt-4 text-sm text-slate-500">
               保存された履歴はまだありません
             </p>
           )}
 
           {userId !== null && histories.length > 0 && (
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-4">
               {histories.map((history) => (
                 <li
                   key={history.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-3 border-t border-slate-100 py-3 text-sm first:border-t-0"
                 >
                   <div>
                     <p className="font-medium text-slate-800">
@@ -1215,18 +1326,18 @@ export default function CompareProperties() {
                     </p>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-4 text-xs">
                     <button
                       type="button"
                       onClick={() => loadHistory(history)}
-                      className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      className="text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline"
                     >
                       読み込む
                     </button>
                     <button
                       type="button"
                       onClick={() => removeHistory(history.id)}
-                      className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100"
+                      className="text-rose-600 underline-offset-4 hover:underline"
                     >
                       削除
                     </button>
@@ -1235,37 +1346,46 @@ export default function CompareProperties() {
               ))}
             </ul>
           )}
-        </div>
+      </Modal>
+
+      {/* 地図から選ぶモーダル */}
+      <Modal
+        open={openSection === "map"}
+        onClose={() => setOpenSection(null)}
+        title="地図から選ぶ"
+        icon={<MapPin size={16} />}
+      >
+        <p className="mb-3 text-xs text-slate-500">
+          緑ピン: 選択中 / 赤ピン: 未選択、クリックで切り替え
+        </p>
+        <PropertyMap
+          properties={filteredProperties}
+          selectedIds={selectedIds}
+          onToggleProperty={checkProperty}
+        />
+      </Modal>
+
+      {/* 比較結果エリア(こちらは常に開いた状態で表示する結果パート) */}
+      <section className="mt-14 border-t border-slate-200 pt-10">
+        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          比較結果
+        </p>
 
         {/* 詳細グラフページへのリンク */}
         {selectedProperties.length > 0 && (
-          <div className="mb-4">
+          <div className="mt-4">
             <Link
               href="/compare/analysis"
-              className="inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+              className="inline-flex bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
             >
               詳細グラフを見る
             </Link>
           </div>
         )}
 
-        {/* 地図から物件を選ぶ */}
-        {filteredProperties.length > 0 && (
-          <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="mb-3 text-sm font-semibold text-slate-900">
-              地図から選ぶ(緑ピン: 選択中 / 赤ピン: 未選択、クリックで切り替え)
-            </p>
-            <PropertyMap
-              properties={filteredProperties}
-              selectedIds={selectedIds}
-              onToggleProperty={checkProperty}
-            />
-          </div>
-        )}
-
         {/* 総合スコアのグラフ */}
         {scoredProperties.length > 0 && ( // 選択中の物件が一件以上の時の処理
-          <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mt-8 border-t border-slate-100 pt-6">
             <h3 className="text-sm font-semibold text-slate-900">
               総合スコア比較
             </h3>
@@ -1306,20 +1426,20 @@ export default function CompareProperties() {
 
         {/* 何も選ばれていないとき */}
         {selectedProperties.length === 0 && (
-          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <p className="mt-6 text-sm text-slate-500">
             比較したい物件を選択してください
           </p>
         )}
 
         {/* 選ばれた物件を横並び表示 */}
         {selectedProperties.length > 0 && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-4 border-t border-slate-100 pt-6 md:grid-cols-2 lg:grid-cols-3">
             {chartProperties.map((property, index) => {
               return (
                 // 1位のときだけUIを変える!
                 <div
                   key={property.id}
-                  className={`rounded-xl border bg-white p-4 shadow-sm ${
+                  className={`rounded-lg border bg-white p-4 ${
                     index === 0 // index === 0：1位  index !== 0：2位以下
                       ? "border-emerald-400 bg-emerald-50/40"
                       : "border-slate-200"
@@ -1415,7 +1535,7 @@ export default function CompareProperties() {
                     <button
                       type="button"
                       onClick={() => toggleRecommend(property.id)}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="text-sm text-slate-500 underline-offset-4 transition hover:text-slate-900 hover:underline"
                     >
                       {recommend[property.id]
                         ? "おすすめ理由を閉じる"
@@ -1424,7 +1544,7 @@ export default function CompareProperties() {
 
                     {/* リコメンド欄 */}
                     {recommend[property.id] && (
-                      <div className="mt-3 h-45 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 ">
+                      <div className="mt-3 h-45 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 ">
                         <p className="text-sm font-semibold text-emerald-900">
                           おすすめ理由
                         </p>

@@ -4,6 +4,7 @@
 
 import { fetchProperties } from "@/lib/propertyApi";
 import { PropertyItem } from "@/lib/propertyTypes";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function PropertiesList() {
@@ -73,64 +74,62 @@ export default function PropertiesList() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      {/* ページタイトル */}
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-        物件一覧
-      </h1>
-      <p className="mt-2 text-sm text-slate-600">
-        登録済みの物件を確認できます
-      </p>
+    <main className="mx-auto w-full max-w-5xl px-6 py-16 sm:px-8">
+      {/* 小さいラベル+明朝体の見出し(/mainと同じ構成) */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
+            RoomCompass
+          </p>
+          <h1 className="mt-3 font-serif text-3xl text-slate-900">
+            物件一覧
+          </h1>
+          <p className="mt-3 text-sm text-slate-500">
+            登録済みの物件を確認できます
+          </p>
+        </div>
 
-      {/* 再読み込みボタン */}
-      <div className="mt-4">
+        {/* 再読み込みボタン */}
         <button
-          //         ↓一覧取得関数
           onClick={loadProperties}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="text-xs text-slate-400 underline-offset-4 transition hover:text-slate-900 hover:underline"
         >
           再読み込み
         </button>
       </div>
 
       {/* 状態ごとの表示 */}
-      <section className="mt-6">
+      <section className="mt-10">
         {/* 読み込み中 */}
         {/* loadingがTrueのときのみ表示 */}
-        {loading && (
-          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            読み込み中
-          </p>
-        )}
+        {loading && <p className="text-sm text-slate-500">読み込み中...</p>}
 
         {/* エラー */}
         {/* loadingがFalse∧errorMessagesが存在するときのみ表示 */}
         {!loading && errMessage && (
-          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {errMessage}
-          </p>
+          <p className="text-sm text-rose-600">{errMessage}</p>
         )}
 
         {/* 一覧が空の時 */}
         {/* loadingがFalse∧errMessageが存在しない∧propetiesのlength(要素数)が0のときのみ表示 */}
         {!loading && !errMessage && properties.length === 0 && (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          <p className="text-sm text-slate-500">
             まだ物件が登録されていません
           </p>
         )}
 
-        {/* 一覧表示 */}
+        {/* 一覧表示(枠で囲んだ表ではなく、罫線だけで区切る) */}
         {!loading && !errMessage && properties.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-100 text-slate-700">
-                <tr>
-                  <th className="px-3 py-2 text-left">写真</th>
-                  <th className="px-3 py-2 text-left">物件名</th>
-                  <th className="px-3 py-2 text-left">住所</th>
-                  <th className="px-3 py-2 text-right">家賃</th>
-                  <th className="px-3 py-2 text-right">面積</th>
-                  <th className="px-3 py-2 text-right">駅徒歩分数</th>
+              <thead>
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400">
+                  <th className="py-3 pr-4 text-left font-medium">写真</th>
+                  <th className="py-3 pr-4 text-left font-medium">物件名</th>
+                  <th className="py-3 pr-4 text-left font-medium">住所</th>
+                  <th className="py-3 pr-4 text-right font-medium">家賃</th>
+                  <th className="py-3 pr-4 text-right font-medium">面積</th>
+                  <th className="py-3 text-right font-medium">駅徒歩分数</th>
                 </tr>
               </thead>
 
@@ -139,8 +138,11 @@ export default function PropertiesList() {
                 {/*        ↓ propertiesの中身を一件ずつ取り出してる */}
                 {/*              ↓ それをpropertyに入れてる */}
                 {properties.map((property) => (
-                  <tr key={property.id} className="border-t border-slate-200">
-                    <td className="px-3 py-2">
+                  <tr
+                    key={property.id}
+                    className="border-b border-slate-100 transition hover:bg-slate-50"
+                  >
+                    <td className="py-3 pr-4">
                       {property.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -154,13 +156,25 @@ export default function PropertiesList() {
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2">{property.name}</td>
-                    <td className="px-3 py-2">{property.address}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="py-3 pr-4">
+                      <Link
+                        href={`/properties/${property.id}`}
+                        className="font-medium text-slate-900 underline underline-offset-4 hover:text-slate-600"
+                      >
+                        {property.name}
+                      </Link>
+                    </td>
+
+                    <td className="py-3 pr-4 text-slate-600">
+                      {property.address}
+                    </td>
+                    <td className="py-3 pr-4 text-right text-slate-600">
                       {property.rent.toLocaleString()}円
                     </td>
-                    <td className="px-3 py-2 text-right">{property.area}㎡</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="py-3 pr-4 text-right text-slate-600">
+                      {property.area}㎡
+                    </td>
+                    <td className="py-3 text-right text-slate-600">
                       {property.station_minutes}分
                     </td>
                   </tr>

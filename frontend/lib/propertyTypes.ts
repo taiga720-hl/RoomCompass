@@ -146,3 +146,84 @@ export type ChatRequest = {
 export type ChatResponse = {
     reply: string;
 };
+
+// 内見予定登録時に送るデータ型
+export type ViewingScheduleRequest = {
+    user_id: number;
+    property_id: number;
+    scheduled_at: string;
+    memo: string | null;
+};
+
+// 内見予定取得時に返ってくるデータ型
+export type ViewingScheduleResponse = {
+    id: number;
+    user_id: number;
+    property_id: number;
+    scheduled_at: string;
+    memo: string | null;
+    created_at: string;
+};
+
+
+// クチコミ投稿用の型
+export type PropertyReviewRequest = {
+    user_id: number;
+    property_id: number;
+    star: number;
+    comment: string;
+};
+
+// クチコミ表示用の型
+export type PropertyReviewResponse = {
+    id: number;
+    user_id: number;
+    property_id: number;
+    star: number;
+    comment: string;
+    created_at: string;
+    updated_at: string;
+    user_name: string;
+};
+
+
+// ユーザー一覧用の型(DM相手・グループメンバーを選ぶ画面で使う)
+export type UserSummary = {
+    id: number;
+    name: string;
+    email: string;
+};
+
+// チャットルーム作成時に送るデータの型
+export type ChatRoomRequest = {
+    created_by: number;
+    member_ids: number[];
+    name: string | null;
+    is_group: boolean;
+};
+
+// チャットルーム表示用の型
+export type ChatRoomInfo = {
+    id: number;
+    name: string | null;
+    is_group: boolean;
+    created_by: number;
+    created_at: string;
+    member_names: string[];
+};
+
+// メッセージ送信時に送るデータの型
+export type RoomMessageRequest = {
+    sender_id: number;
+    content: string;
+};
+
+// メッセージ表示用の型
+export type RoomMessageInfo = {
+    id: number;
+    room_id: number;
+    sender_id: number;
+    sender_name: string;
+    content: string;
+    created_at: string;
+};

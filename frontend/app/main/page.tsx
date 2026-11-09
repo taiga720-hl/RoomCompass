@@ -3,12 +3,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ArrowRight } from "lucide-react";
 
 //* localStorageに保存されてるユーザー型
 type LocalStorageUser = {
   userId: number;
   name: string;
   email: string;
+};
+
+//* メニュー1件分のデータ型
+type MenuItem = {
+  number: string;
+  title: string;
+  description: string;
+  href: string;
 };
 
 export default function MainPage() {
@@ -52,99 +61,127 @@ export default function MainPage() {
     router.push("/");
   }
 
+  // メニュー本体(番号付きの一覧として表示する)
+  const menuItems: MenuItem[] = [
+    {
+      number: "01",
+      title: "物件を登録する",
+      description: "比較したい物件情報を追加します",
+      href: "/properties/create",
+    },
+    {
+      number: "02",
+      title: "物件一覧を見る",
+      description: "登録済みデータを確認します",
+      href: "/properties",
+    },
+    {
+      number: "03",
+      title: "物件を比較する",
+      description: "登録済みの物件を比較します",
+      href: "/compare",
+    },
+    {
+      number: "04",
+      title: "AIに物件相談する",
+      description: "AIに物件について質問できます",
+      href: "/chat",
+    },
+    {
+      number: "05",
+      title: "内見予定を管理する",
+      description: "カレンダーで内見の予定を登録・確認できます",
+      href: "/schedule",
+    },
+    {
+      number: "06",
+      title: "メッセージ",
+      description: "他のユーザーとDM・グループチャットができます",
+      href: "/messages",
+    },
+  ];
+
+  // 未ログインの時だけ追加する項目(新規登録・ログイン)
+  const guestItems: MenuItem[] = [
+    {
+      number: "07",
+      title: "新規登録",
+      description: "ユーザーを作成します",
+      href: "/register",
+    },
+    {
+      number: "08",
+      title: "ログイン",
+      description: "登録済みユーザーでログインします",
+      href: "/login",
+    },
+  ];
+
+  const visibleItems = user ? menuItems : [...menuItems, ...guestItems];
+
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">メインメニュー</h1>
-          <p className="mt-2 text-slate-600">次の操作を選んでください</p>
-        </div>
+    <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-20 sm:px-8">
+      {/* 小さいラベル(雑誌のノド見出しのようなイメージ) */}
+      <p className="text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
+        RoomCompass
+      </p>
 
-        {/* ログイン状態表示エリア */}
+      {/* ログイン状態の表示エリア */}
+      <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-5">
         {user ? (
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-slate-700">
-              ようこそ、<span className="font-semibold">{user.name}</span>さん
-            </p>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              ログアウト
-            </button>
-          </div>
+          <p className="text-sm text-slate-500">
+            ようこそ、
+            <span className="font-medium text-slate-900">{user.name}</span>
+            さん
+          </p>
         ) : (
-          <p className="text-sm text-slate-500">未ログイン</p>
+          <p className="text-sm text-slate-400">未ログイン</p>
+        )}
+
+        {user && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="text-sm text-slate-400 underline-offset-4 transition hover:text-slate-900 hover:underline"
+          >
+            ログアウト
+          </button>
         )}
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/properties/create"
-          className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
-        >
-          <p className="font-semibold text-slate-900">物件を登録する</p>
-          <p className="mt-1 text-sm text-slate-600">
-            比較したい物件情報を追加します
-          </p>
-        </Link>
-
-        <Link
-          href="/properties"
-          className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
-        >
-          <p className="font-semibold text-slate-900">物件一覧を見る</p>
-          <p className="mt-1 text-sm text-slate-600">
-            登録済みデータを確認します
-          </p>
-        </Link>
-
-        <Link
-          href="/compare"
-          className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
-        >
-          <p className="font-semibold text-slate-900">物件を比較する</p>
-          <p className="mt-1 text-sm text-slate-600">
-            登録済みの物件を比較します
-          </p>
-        </Link>
-
-        <Link
-          href="/chat"
-          className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
-        >
-          <p className="font-semibold text-slate-900">AIに物件相談する</p>
-          <p className="mt-1 text-sm text-slate-600">
-            AIに物件について質問できます
-          </p>
-        </Link>
-
-        {/* ログイン済みの時は新規登録・ログインの導線を隠す(もう使わないため) */}
-        {!user && (
-          <>
+      {/* メニュー一覧(番号付きの、罫線だけで区切るエディトリアルなリスト) */}
+      <ul className="mt-4 border-b border-slate-200">
+        {visibleItems.map((item) => (
+          <li key={item.href} className="border-t border-slate-200">
             <Link
-              href="/register"
-              className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+              href={item.href}
+              className="group flex items-center justify-between gap-6 border-l-2 border-transparent py-6 pl-4 transition-all duration-150 hover:border-slate-900 hover:bg-slate-100"
             >
-              <p className="font-semibold text-slate-900">新規登録</p>
-              <p className="mt-1 text-sm text-slate-600">
-                ユーザーを作成します
-              </p>
-            </Link>
+              <div className="flex items-baseline gap-5 sm:gap-8">
+                {/* 番号(細めのグレーで控えめに) */}
+                <span className="font-serif text-sm text-slate-300">
+                  {item.number}
+                </span>
 
-            <Link
-              href="/login"
-              className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
-            >
-              <p className="font-semibold text-slate-900">ログイン</p>
-              <p className="mt-1 text-sm text-slate-600">
-                登録済みユーザーでログインします
-              </p>
+                <div>
+                  <p className="text-base font-medium text-slate-900 sm:text-lg">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+
+              {/* 矢印アイコン(ホバーで少し右に動く) */}
+              <ArrowRight
+                size={18}
+                className="shrink-0 text-slate-300 transition-all duration-200 group-hover:translate-x-1 group-hover:text-slate-900"
+              />
             </Link>
-          </>
-        )}
-      </div>
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }

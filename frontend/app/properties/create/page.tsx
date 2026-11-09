@@ -9,6 +9,10 @@ import LocationPicker from "@/components/LocationPicker";
 import { useRouter } from "next/navigation";
 import React, { FormEvent, useState } from "react";
 
+// 下線だけのシンプルな入力欄・セレクトに共通で使うクラス
+const FIELD_CLASS =
+  "mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-sm text-slate-900 outline-none transition focus:border-slate-900";
+
 export default function Create() {
   const router = useRouter();
 
@@ -158,73 +162,81 @@ export default function Create() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8">
-      {/* ページ見出し */}
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-        物件登録
-      </h1>
-      <p className="mt-2 text-sm text-slate-600">
+    <main className="mx-auto w-full max-w-2xl px-6 py-16 sm:px-8">
+      {/* 小さいラベル+明朝体の見出し(/mainと同じ構成) */}
+      <p className="text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
+        RoomCompass
+      </p>
+      <h1 className="mt-3 font-serif text-3xl text-slate-900">物件登録</h1>
+      <p className="mt-3 text-sm text-slate-500">
         比較したい物件の情報を入力してください
       </p>
 
-      {/* 登録フォーム */}
-      <form
-        onSubmit={handleSubmit}
-        className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-      >
+      {/* 登録フォーム(枠で囲まず、罫線区切りで項目を並べる) */}
+      <form onSubmit={handleSubmit} className="mt-10 space-y-8">
         {/* 物件名 */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-700">物件名</label>
+        <div>
+          <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
+            物件名
+          </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            className={FIELD_CLASS}
             placeholder="例: RoomCompass新宿"
           />
         </div>
 
         {/* 住所 */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-700">住所</label>
+        <div>
+          <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
+            住所
+          </label>
           <input
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             required
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            className={FIELD_CLASS}
             placeholder="例: 東京都新宿区..."
           />
         </div>
 
         {/* 地図から選ぶ */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-700">
+        <div>
+          <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
             地図から選ぶ(クリックで住所欄に自動入力されます)
           </label>
-          <LocationPicker onSelectLocation={handleSelectLocation} />
+          <div className="mt-2">
+            <LocationPicker onSelectLocation={handleSelectLocation} />
+          </div>
         </div>
 
         {/* 数値入力3項目を横並び（小画面では縦並び） */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-3">
           {/* 家賃 */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">家賃</label>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              家賃
+            </label>
             <input
               type="number"
               min="0"
               value={rent}
               onChange={(e) => setRent(e.target.value)}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              className={FIELD_CLASS}
               placeholder="120000"
             />
           </div>
 
           {/* 面積 */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">面積</label>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              面積
+            </label>
             <input
               type="number"
               min="0"
@@ -232,14 +244,14 @@ export default function Create() {
               value={area}
               onChange={(e) => setArea(e.target.value)}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              className={FIELD_CLASS}
               placeholder="28.5"
             />
           </div>
 
           {/* 駅徒歩 */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
               駅徒歩(分)
             </label>
             <input
@@ -248,14 +260,14 @@ export default function Create() {
               value={station_minutes}
               onChange={(e) => setStation_minutes(e.target.value)}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              className={FIELD_CLASS}
               placeholder="7"
             />
           </div>
 
           {/* 築年数(任意) */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
               築年数(任意)
             </label>
             <input
@@ -263,20 +275,20 @@ export default function Create() {
               min="0"
               value={ageYears}
               onChange={(e) => setAgeYears(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              className={FIELD_CLASS}
               placeholder="不明なら空欄"
             />
           </div>
 
           {/* 構造(任意) */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
               構造(任意)
             </label>
             <select
               value={structure}
               onChange={(e) => setStructure(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+              className={FIELD_CLASS}
             >
               <option value="">不明・未選択</option>
               <option value="木造">木造</option>
@@ -294,22 +306,22 @@ export default function Create() {
         </div>
 
         {/* 物件写真(任意) */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-700">
+        <div>
+          <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
             物件写真(任意)
           </label>
           <input
             type="file"
             accept="image/*"
             onChange={handleImageSelect}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-sm text-slate-600 outline-none transition file:mr-3 file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
           />
           {imagePreviewUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={imagePreviewUrl}
               alt="プレビュー"
-              className="mt-2 h-40 w-full rounded-lg object-cover"
+              className="mt-3 h-40 w-full rounded-lg object-cover"
             />
           )}
         </div>
@@ -318,24 +330,22 @@ export default function Create() {
         <button
           type="submit"
           disabled={loading || uploadingImage}
-          className="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="w-full bg-slate-900 py-3.5 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {uploadingImage
             ? "画像アップロード中..."
             : loading
-            ? "登録中..."
-            : "登録する"}
+              ? "登録中..."
+              : "登録する"}
         </button>
       </form>
 
       {/* 結果メッセージ(成功/失敗で色分け) */}
       {message && (
         <p
-          className={
-            isError
-              ? "mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
-              : "mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
-          }
+          className={`mt-6 text-sm font-medium ${
+            isError ? "text-rose-600" : "text-emerald-600"
+          }`}
         >
           {message}
         </p>

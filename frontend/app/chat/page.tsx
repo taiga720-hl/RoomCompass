@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Sparkles } from "lucide-react";
 import { sendChatMessage } from "@/lib/propertyApi";
 import { ChatMessage } from "@/lib/propertyTypes";
 
@@ -89,34 +90,33 @@ export default function ChatPage() {
 
   return (
     <main
-      className="mx-auto flex w-full max-w-2xl flex-col px-4 py-10"
+      className="mx-auto flex w-full max-w-2xl flex-col px-6 py-16 sm:px-8"
       style={{ minHeight: "80vh" }}
     >
+      {/* 小さいラベル+明朝体の見出し(/mainと同じ構成) */}
+      <p className="text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
+        RoomCompass
+      </p>
+      <h1 className="mt-3 font-serif text-3xl text-slate-900">AI物件相談</h1>
+      <p className="mt-3 text-sm text-slate-500">
+        登録物件について何でも聞いてください
+      </p>
+
       {/* 未ログイン時のバナー */}
       {userId === null && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="mt-4 text-sm text-slate-500">
           AI相談機能はログイン後に利用できます。{" "}
-          <a href="/login" className="font-medium underline">
+          <a
+            href="/login"
+            className="font-medium text-slate-900 underline underline-offset-4"
+          >
             ログインする
           </a>
-        </div>
+        </p>
       )}
 
-      {/* チャットウィンドウ全体(角丸+影で「アプリのウィンドウ」感を出す) */}
-      <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
-        {/* ヘッダーバー */}
-        <div className="flex items-center gap-3 bg-blue-600 px-5 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-lg">
-            🤖
-          </div>
-          <div>
-            <p className="font-semibold text-white">AI物件相談</p>
-            <p className="text-xs text-blue-100">
-              登録物件について何でも聞いてください
-            </p>
-          </div>
-        </div>
-
+      {/* チャットウィンドウ全体 */}
+      <div className="mt-8 flex flex-1 flex-col overflow-hidden border border-slate-200">
         {/* 会話履歴の表示エリア */}
         <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4">
           {messages.length === 0 && (
@@ -135,15 +135,15 @@ export default function ChatPage() {
             >
               {/* AIのアイコン(左側だけ表示) */}
               {message.role === "assistant" && (
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm">
-                  🤖
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white">
+                  <Sparkles size={14} />
                 </div>
               )}
 
               <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${
                   message.role === "user"
-                    ? "bg-blue-600 text-white"
+                    ? "bg-slate-900 text-white"
                     : "border border-slate-200 bg-white text-slate-900"
                 }`}
               >
@@ -206,10 +206,10 @@ export default function ChatPage() {
           {/* AIが返信を考えている間のタイピングアニメーション */}
           {loading && (
             <div className="flex items-end justify-start gap-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm">
-                🤖
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white">
+                <Sparkles size={14} />
               </div>
-              <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-4 py-3">
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
@@ -222,7 +222,7 @@ export default function ChatPage() {
         </div>
 
         {error && (
-          <p className="bg-slate-50 px-4 pb-2 text-sm text-red-600">{error}</p>
+          <p className="bg-slate-50 px-4 pb-2 text-sm text-rose-600">{error}</p>
         )}
 
         {/* 入力エリア */}
@@ -240,14 +240,14 @@ export default function ChatPage() {
             placeholder={
               userId === null ? "ログインしてください" : "メッセージを入力"
             }
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="flex-1 border-b border-slate-300 bg-transparent px-1 py-2 text-sm outline-none transition focus:border-slate-900"
             disabled={loading || userId === null}
           />
           <button
             type="button"
             onClick={handleSend}
             disabled={loading || userId === null}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-50"
           >
             送信
           </button>

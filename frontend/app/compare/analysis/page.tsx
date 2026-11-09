@@ -156,33 +156,36 @@ export default function CompareAnalysisPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-8">
-        <p className="text-sm text-slate-600">読み込み中...</p>
+      <main className="mx-auto w-full max-w-5xl px-6 py-16 sm:px-8">
+        <p className="text-sm text-slate-500">読み込み中...</p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <main className="mx-auto w-full max-w-5xl px-6 py-16 sm:px-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <p className="text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
+            RoomCompass
+          </p>
+          <h1 className="mt-3 font-serif text-3xl text-slate-900">
             比較の詳細グラフ
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-slate-500">
             比較ページで選択した物件をもとに表示しています
           </p>
         </div>
         <Link
           href="/compare"
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="text-xs text-slate-400 underline-offset-4 transition hover:text-slate-900 hover:underline"
         >
           比較画面に戻る
         </Link>
       </div>
 
       {selectedProperties.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+        <p className="mt-8 text-sm text-slate-500">
           物件が選択されていません。まず比較ページで比較したい物件を選んでください。
         </p>
       ) : (
@@ -190,7 +193,7 @@ export default function CompareAnalysisPage() {
           {/* 2×2のグリッドで4つのグラフを並べる(画面が狭い時は1列に自動で切り替わる) */}
           <div className="grid gap-6 lg:grid-cols-2">
             {/* 総合スコアランキング */}
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section className="border border-slate-200 bg-white p-4">
               <h2 className="text-sm font-semibold text-slate-900">
                 総合スコアランキング
               </h2>
@@ -229,7 +232,7 @@ export default function CompareAnalysisPage() {
             </section>
 
             {/* 項目バランス比較(レーダーチャート) */}
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section className="border border-slate-200 bg-white p-4">
               <h2 className="text-sm font-semibold text-slate-900">
                 項目バランス比較
               </h2>
@@ -266,7 +269,7 @@ export default function CompareAnalysisPage() {
             </section>
 
             {/* 家賃×面積の分布(散布図) */}
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section className="border border-slate-200 bg-white p-4">
               <h2 className="text-sm font-semibold text-slate-900">
                 家賃×面積の分布
               </h2>
@@ -307,7 +310,7 @@ export default function CompareAnalysisPage() {
             </section>
 
             {/* 重視度の内訳 */}
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section className="border border-slate-200 bg-white p-4">
               <h2 className="text-sm font-semibold text-slate-900">
                 現在の重視度の内訳
               </h2>

@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -44,48 +44,48 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-xl px-4 py-10">
-      <div className="mb-6">
-        <Link
-          href="/main"
-          className="text-sm text-slate-500 hover:text-slate-700"
-        >
-          ← メインに戻る
-        </Link>
-      </div>
+    <main className="mx-auto w-full max-w-md px-6 py-20 sm:px-8">
+      <Link
+        href="/main"
+        className="text-xs text-slate-400 transition hover:text-slate-900"
+      >
+        ← メインに戻る
+      </Link>
 
-      <h1 className="text-2xl font-bold text-slate-900">ログイン</h1>
-      <p className="mt-2 text-slate-600">
+      {/* 小さいラベル+明朝体の見出し(/mainと同じ構成) */}
+      <p className="mt-10 text-xs font-medium uppercase tracking-[0.3em] text-slate-400">
+        RoomCompass
+      </p>
+      <h1 className="mt-3 font-serif text-3xl text-slate-900">ログイン</h1>
+      <p className="mt-3 text-sm text-slate-500">
         ログインして、お気に入りや比較データをユーザー単位で使えるようにします
       </p>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mt-8 space-y-5 rounded-2xl border border-slate-200 bg-white p-6"
-      >
+      <form onSubmit={handleSubmit} className="mt-10 space-y-7">
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+          <label className="block text-xs font-medium uppercase tracking-wider text-slate-400">
             メールアドレス
           </label>
+          {/* 枠で囲んだ入力欄ではなく、下線だけのミニマルな見た目にする */}
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
+            className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-slate-900 outline-none transition focus:border-slate-900"
             placeholder="sample@example.com"
             required
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+          <label className="block text-xs font-medium uppercase tracking-wider text-slate-400">
             パスワード
           </label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
+            className="mt-2 w-full border-b border-slate-300 bg-transparent py-2 text-slate-900 outline-none transition focus:border-slate-900"
             placeholder="パスワードを入力"
             required
           />
@@ -98,18 +98,21 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+          className="w-full bg-slate-900 py-3.5 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-50"
         >
           {loading ? "ログイン中..." : "ログインする"}
         </button>
       </form>
 
-      <div className="mt-6 text-sm text-slate-600">
+      <p className="mt-8 text-sm text-slate-500">
         まだ登録していない方は{" "}
-        <Link href="/register" className="font-medium text-slate-900 underline">
+        <Link
+          href="/register"
+          className="font-medium text-slate-900 underline underline-offset-4"
+        >
           新規登録へ
         </Link>
-      </div>
+      </p>
     </main>
   );
 }
